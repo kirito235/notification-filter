@@ -7,7 +7,7 @@ plugins {
 
 android {
     namespace = "com.example.notification_filter"
-    compileSdk = 34
+    compileSdk = 36
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
