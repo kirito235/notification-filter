@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 final DateTime appStartTime = DateTime.now();
+
 void main() {
   runApp(const MyApp());
 }
@@ -12,13 +13,18 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Notification Filter',
+      title: 'NotifGuard',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
+      theme: ThemeData.dark().copyWith(
+        colorScheme: ColorScheme.dark(
+          primary: Colors.deepPurple,
+          secondary: Colors.deepPurpleAccent,
+          surface: const Color(0xFF1A1A1A),
+        ),
+        scaffoldBackgroundColor: const Color(0xFF0D0D0D),
         useMaterial3: true,
       ),
-      home: const RootPage(),
+      home: const SplashPage(),
     );
   }
 }
@@ -82,20 +88,6 @@ class WhitelistStore {
     await prefs.setStringList(pkg, whitelist[pkg]!.toList());
   }
 
-  static Future<void> addContact(String pkg, String name) async {
-    if (!whitelist.containsKey(pkg)) whitelist[pkg] = {};
-    whitelist[pkg]!.add(name);
-    await save(pkg);
-    await syncToNative();
-  }
-  
-
-  static Future<void> removeContact(String pkg, String name) async {
-    whitelist[pkg]?.remove(name);
-    await save(pkg);
-    await syncToNative();
-  }
-
   static Future<void> syncToNative() async {
     const channel = MethodChannel('whitelist_sync');
     final Map<String, List<String>> data = {};
@@ -109,6 +101,19 @@ class WhitelistStore {
     }
   }
 
+  static Future<void> addContact(String pkg, String name) async {
+    if (!whitelist.containsKey(pkg)) whitelist[pkg] = {};
+    whitelist[pkg]!.add(name);
+    await save(pkg);
+    await syncToNative();
+  }
+
+  static Future<void> removeContact(String pkg, String name) async {
+    whitelist[pkg]?.remove(name);
+    await save(pkg);
+    await syncToNative();
+  }
+
   static bool isAllowed(String pkg, String title) {
     if (!whitelist.containsKey(pkg)) return false;
     final contacts = whitelist[pkg]!;
@@ -118,7 +123,348 @@ class WhitelistStore {
   }
 }
 
-// ─── ROOT PAGE (Bottom Nav) ──────────────────────────────────────
+// ─── SPLASH PAGE ─────────────────────────────────────────────────
+class SplashPage extends StatefulWidget {
+  const SplashPage({super.key});
+  @override
+  State<SplashPage> createState() => _SplashPageState();
+}
+
+class _SplashPageState extends State<SplashPage>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _fadeIn;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+        vsync: this, duration: const Duration(milliseconds: 1200));
+    _fadeIn = CurvedAnimation(parent: _controller, curve: Curves.easeIn);
+    _controller.forward();
+    _checkOnboarding();
+  }
+
+  Future<void> _checkOnboarding() async {
+    await Future.delayed(const Duration(seconds: 2));
+    final prefs = await SharedPreferences.getInstance();
+    final seen = prefs.getBool('onboarding_done') ?? false;
+    if (!mounted) return;
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(
+        builder: (_) => seen ? const RootPage() : const OnboardingPage(),
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFF0D0D0D),
+      body: FadeTransition(
+        opacity: _fadeIn,
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                width: 100,
+                height: 100,
+                decoration: BoxDecoration(
+                  color: Colors.deepPurple.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(24),
+                  border: Border.all(
+                      color: Colors.deepPurple.withOpacity(0.5), width: 2),
+                ),
+                child: const Icon(Icons.shield,
+                    color: Colors.deepPurple, size: 56),
+              ),
+              const SizedBox(height: 24),
+              const Text('NotifGuard',
+                  style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 32,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 1.2)),
+              const SizedBox(height: 8),
+              Text('Your notifications, your rules.',
+                  style: TextStyle(
+                      color: Colors.grey[500], fontSize: 15)),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ─── ONBOARDING PAGE ─────────────────────────────────────────────
+class OnboardingPage extends StatefulWidget {
+  const OnboardingPage({super.key});
+  @override
+  State<OnboardingPage> createState() => _OnboardingPageState();
+}
+
+class _OnboardingPageState extends State<OnboardingPage> {
+  final PageController _pageController = PageController();
+  int _currentPage = 0;
+
+  final List<Map<String, dynamic>> pages = [
+    {
+      'icon': Icons.notifications_off,
+      'color': Colors.redAccent,
+      'title': 'Tired of notification spam?',
+      'subtitle':
+          'Group chats, promotional messages, and random notifications constantly interrupt your day.',
+    },
+    {
+      'icon': Icons.shield,
+      'color': Colors.deepPurple,
+      'title': 'NotifGuard filters for you',
+      'subtitle':
+          'Only notifications from people you care about get through. Everything else is silently suppressed.',
+    },
+    {
+      'icon': Icons.tune,
+      'color': Colors.green,
+      'title': 'You control the whitelist',
+      'subtitle':
+          'Add contacts from WhatsApp, Instagram, and Snapchat. One tap to whitelist anyone from the notification log.',
+    },
+    {
+      'icon': Icons.lock,
+      'color': Colors.orange,
+      'title': 'Private & local',
+      'subtitle':
+          'Everything stays on your device. No servers, no accounts, no data collection. Ever.',
+    },
+  ];
+
+  Future<void> _finish() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('onboarding_done', true);
+    if (!mounted) return;
+    Navigator.pushReplacement(
+        context, MaterialPageRoute(builder: (_) => const PermissionPage()));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFF0D0D0D),
+      body: SafeArea(
+        child: Column(
+          children: [
+            Expanded(
+              child: PageView.builder(
+                controller: _pageController,
+                onPageChanged: (i) => setState(() => _currentPage = i),
+                itemCount: pages.length,
+                itemBuilder: (ctx, i) {
+                  final page = pages[i];
+                  return Padding(
+                    padding: const EdgeInsets.all(40),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Container(
+                          width: 120,
+                          height: 120,
+                          decoration: BoxDecoration(
+                            color: (page['color'] as Color).withOpacity(0.15),
+                            borderRadius: BorderRadius.circular(30),
+                            border: Border.all(
+                                color: (page['color'] as Color).withOpacity(0.4),
+                                width: 2),
+                          ),
+                          child: Icon(page['icon'] as IconData,
+                              color: page['color'] as Color, size: 60),
+                        ),
+                        const SizedBox(height: 40),
+                        Text(page['title'] as String,
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 24,
+                                fontWeight: FontWeight.bold)),
+                        const SizedBox(height: 16),
+                        Text(page['subtitle'] as String,
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                                color: Colors.grey[400], fontSize: 15,
+                                height: 1.5)),
+                      ],
+                    ),
+                  );
+                },
+              ),
+            ),
+
+            // Dots
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: List.generate(pages.length, (i) => AnimatedContainer(
+                duration: const Duration(milliseconds: 300),
+                margin: const EdgeInsets.symmetric(horizontal: 4),
+                width: _currentPage == i ? 24 : 8,
+                height: 8,
+                decoration: BoxDecoration(
+                  color: _currentPage == i
+                      ? Colors.deepPurple
+                      : Colors.grey[700],
+                  borderRadius: BorderRadius.circular(4),
+                ),
+              )),
+            ),
+
+            const SizedBox(height: 40),
+
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  TextButton(
+                    onPressed: _finish,
+                    child: Text('Skip',
+                        style: TextStyle(color: Colors.grey[500])),
+                  ),
+                  ElevatedButton(
+                    onPressed: () {
+                      if (_currentPage < pages.length - 1) {
+                        _pageController.nextPage(
+                            duration: const Duration(milliseconds: 300),
+                            curve: Curves.easeInOut);
+                      } else {
+                        _finish();
+                      }
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.deepPurple,
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 32, vertical: 14),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12)),
+                    ),
+                    child: Text(
+                      _currentPage < pages.length - 1 ? 'Next' : 'Get Started',
+                      style: const TextStyle(
+                          color: Colors.white, fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 32),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ─── PERMISSION PAGE ─────────────────────────────────────────────
+class PermissionPage extends StatelessWidget {
+  const PermissionPage({super.key});
+
+  static const platform = MethodChannel('notifications');
+
+  Future<void> _openSettings(BuildContext context) async {
+    try {
+      await platform.invokeMethod('openNotificationSettings');
+    } catch (_) {}
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFF0D0D0D),
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                width: 100,
+                height: 100,
+                decoration: BoxDecoration(
+                  color: Colors.orange.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(24),
+                  border: Border.all(
+                      color: Colors.orange.withOpacity(0.4), width: 2),
+                ),
+                child: const Icon(Icons.notifications_active,
+                    color: Colors.orange, size: 52),
+              ),
+              const SizedBox(height: 32),
+              const Text('One Permission Needed',
+                  style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold)),
+              const SizedBox(height: 16),
+              Text(
+                'NotifGuard needs Notification Access to read and filter notifications from WhatsApp, Instagram, and Snapchat.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                    color: Colors.grey[400], fontSize: 15, height: 1.5),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'Your data never leaves your device.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                    color: Colors.grey[600], fontSize: 13),
+              ),
+              const SizedBox(height: 48),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  icon: const Icon(Icons.settings, color: Colors.white),
+                  label: const Text('Open Notification Settings',
+                      style: TextStyle(color: Colors.white)),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.deepPurple,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
+                  ),
+                  onPressed: () => _openSettings(context),
+                ),
+              ),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton(
+                  style: OutlinedButton.styleFrom(
+                    side: BorderSide(color: Colors.grey[700]!),
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
+                  ),
+                  onPressed: () => Navigator.pushReplacement(context,
+                      MaterialPageRoute(builder: (_) => const RootPage())),
+                  child: Text('I already gave permission',
+                      style: TextStyle(color: Colors.grey[400])),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ─── ROOT PAGE ───────────────────────────────────────────────────
 class RootPage extends StatefulWidget {
   const RootPage({super.key});
   @override
@@ -129,8 +475,8 @@ class _RootPageState extends State<RootPage> {
   static const platform = MethodChannel('notifications');
   int _currentIndex = 0;
   bool _loaded = false;
+  bool _filterEnabled = true;
 
-  // Shared notification lists
   final List<NotifItem> allNotifs = [];
   final List<NotifItem> filteredNotifs = [];
 
@@ -139,8 +485,6 @@ class _RootPageState extends State<RootPage> {
     super.initState();
     _init();
   }
-
-  
 
   Future<void> _init() async {
     await WhitelistStore.load();
@@ -154,14 +498,9 @@ class _RootPageState extends State<RootPage> {
         final title = data['title'] ?? '';
         final text = data['text'] ?? '';
 
-        // Fix 1 — ignore notifications that arrived before app started
         final now = DateTime.now();
         if (now.isBefore(appStartTime)) return;
-
-        // Fix 2 — ignore summary notifications
         if (_isSummaryNotification(pkg, title, text)) return;
-
-        // Fix 2 — ignore duplicates (same pkg + title within 2 seconds)
         if (_isDuplicate(pkg, title)) return;
 
         final item = NotifItem(
@@ -182,15 +521,10 @@ class _RootPageState extends State<RootPage> {
   }
 
   bool _isSummaryNotification(String pkg, String title, String text) {
-    // WhatsApp summary: "X messages from Y chats"
     if (text.contains('messages from') && text.contains('chats')) return true;
-    // WhatsApp summary title
     if (title == 'WA Business' || title == 'WhatsApp') return true;
-    // Snapchat batch: "You have X new snaps"
     if (pkg == 'com.snapchat.android' && text.contains('new snap')) return true;
-    // Instagram batch
     if (pkg == 'com.instagram.android' && title == 'Instagram') return true;
-    // Android system notifications
     if (pkg == 'android') return true;
     return false;
   }
@@ -203,7 +537,6 @@ class _RootPageState extends State<RootPage> {
   }
 
   void _onWhitelistAdded() {
-    // Recheck all notifications against updated whitelist
     setState(() {
       filteredNotifs.clear();
       for (final item in allNotifs) {
@@ -226,6 +559,8 @@ class _RootPageState extends State<RootPage> {
     final pages = [
       FilteredPage(
         notifs: filteredNotifs,
+        filterEnabled: _filterEnabled,
+        onToggleFilter: (val) => setState(() => _filterEnabled = val),
         onClear: () => setState(() => filteredNotifs.clear()),
       ),
       AllNotifsPage(
@@ -261,18 +596,21 @@ class _RootPageState extends State<RootPage> {
             icon: Badge(
               isLabelVisible: allNotifs.isNotEmpty,
               label: Text('${allNotifs.length}'),
-              child: const Icon(Icons.notifications_outlined, color: Colors.grey),
+              child: const Icon(Icons.notifications_outlined,
+                  color: Colors.grey),
             ),
             selectedIcon: Badge(
               isLabelVisible: allNotifs.isNotEmpty,
               label: Text('${allNotifs.length}'),
-              child: const Icon(Icons.notifications, color: Colors.white),
+              child:
+                  const Icon(Icons.notifications, color: Colors.white),
             ),
             label: 'All',
           ),
           const NavigationDestination(
             icon: Icon(Icons.manage_accounts_outlined, color: Colors.grey),
-            selectedIcon: Icon(Icons.manage_accounts, color: Colors.white),
+            selectedIcon:
+                Icon(Icons.manage_accounts, color: Colors.white),
             label: 'Whitelist',
           ),
         ],
@@ -281,7 +619,7 @@ class _RootPageState extends State<RootPage> {
   }
 }
 
-// ─── NOTIFICATION CARD (reusable) ────────────────────────────────
+// ─── NOTIFICATION CARD ───────────────────────────────────────────
 class NotifCard extends StatelessWidget {
   final NotifItem item;
   final VoidCallback? onWhitelist;
@@ -311,7 +649,6 @@ class NotifCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Top row — app name + time
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -322,33 +659,29 @@ class NotifCard extends StatelessWidget {
                     color: color.withOpacity(0.15),
                     borderRadius: BorderRadius.circular(6),
                   ),
-                  child: Text(
-                    AppInfo.name(item.packageName),
-                    style: TextStyle(
-                        color: color,
-                        fontSize: 11,
-                        fontWeight: FontWeight.bold),
-                  ),
+                  child: Text(AppInfo.name(item.packageName),
+                      style: TextStyle(
+                          color: color,
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold)),
                 ),
                 Text(_timeAgo(item.time),
-                    style:
-                        TextStyle(color: Colors.grey[600], fontSize: 11)),
+                    style: TextStyle(
+                        color: Colors.grey[600], fontSize: 11)),
               ],
             ),
             const SizedBox(height: 8),
-            // Title
             Text(item.title,
                 style: const TextStyle(
                     color: Colors.white,
                     fontWeight: FontWeight.bold,
                     fontSize: 14)),
             const SizedBox(height: 4),
-            // Text
             Text(item.text,
-                style: TextStyle(color: Colors.grey[400], fontSize: 13),
+                style:
+                    TextStyle(color: Colors.grey[400], fontSize: 13),
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis),
-            // Whitelist button
             if (onWhitelist != null) ...[
               const SizedBox(height: 8),
               Align(
@@ -379,24 +712,47 @@ class NotifCard extends StatelessWidget {
 // ─── FILTERED PAGE ───────────────────────────────────────────────
 class FilteredPage extends StatelessWidget {
   final List<NotifItem> notifs;
+  final bool filterEnabled;
+  final ValueChanged<bool> onToggleFilter;
   final VoidCallback onClear;
 
-  const FilteredPage(
-      {super.key, required this.notifs, required this.onClear});
+  const FilteredPage({
+    super.key,
+    required this.notifs,
+    required this.filterEnabled,
+    required this.onToggleFilter,
+    required this.onClear,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFF0D0D0D),
       appBar: AppBar(
-        backgroundColor: Colors.deepPurple,
-        title: const Text('Filtered',
-            style:
-                TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        backgroundColor: const Color(0xFF1A1A1A),
+        title: const Text('NotifGuard',
+            style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+                fontSize: 20)),
         actions: [
+          Row(
+            children: [
+              Text(filterEnabled ? 'ON' : 'OFF',
+                  style: TextStyle(
+                      color: filterEnabled ? Colors.green : Colors.red,
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold)),
+              Switch(
+                value: filterEnabled,
+                onChanged: onToggleFilter,
+                activeColor: Colors.deepPurple,
+              ),
+            ],
+          ),
           if (notifs.isNotEmpty)
             IconButton(
-              icon: const Icon(Icons.delete_sweep, color: Colors.white),
+              icon: const Icon(Icons.delete_sweep, color: Colors.grey),
               onPressed: onClear,
             ),
         ],
@@ -406,17 +762,19 @@ class FilteredPage extends StatelessWidget {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Icon(Icons.filter_alt_outlined,
-                      color: Colors.grey, size: 64),
+                  Icon(Icons.shield,
+                      color: Colors.deepPurple.withOpacity(0.4), size: 72),
                   const SizedBox(height: 16),
-                  const Text('No filtered notifications yet.',
-                      style: TextStyle(color: Colors.grey, fontSize: 15)),
+                  const Text('All quiet.',
+                      style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold)),
                   const SizedBox(height: 8),
                   Text(
-                    'Go to All tab → tap "+ Whitelist"\non any notification to add contacts.',
+                    'Whitelisted notifications\nwill appear here.',
                     textAlign: TextAlign.center,
-                    style:
-                        TextStyle(color: Colors.grey[700], fontSize: 13),
+                    style: TextStyle(color: Colors.grey[600], fontSize: 14),
                   ),
                 ],
               ),
@@ -462,20 +820,21 @@ class _AllNotifsPageState extends State<AllNotifsPage> {
     final pkg = item.packageName;
     if (!WhitelistStore.whitelist.containsKey(pkg)) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('This app is not supported for filtering.')),
+        const SnackBar(
+            content: Text('This app is not supported for filtering.')),
       );
       return;
     }
-
     await WhitelistStore.addContact(pkg, item.title);
     widget.onWhitelistAdded();
-
+    if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         backgroundColor: AppInfo.color(pkg),
         content: Text(
           '"${item.title}" added to ${AppInfo.name(pkg)} whitelist!',
-          style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+          style: const TextStyle(
+              color: Colors.black, fontWeight: FontWeight.bold),
         ),
       ),
     );
@@ -493,21 +852,20 @@ class _AllNotifsPageState extends State<AllNotifsPage> {
     return Scaffold(
       backgroundColor: const Color(0xFF0D0D0D),
       appBar: AppBar(
-        backgroundColor: Colors.deepPurple,
+        backgroundColor: const Color(0xFF1A1A1A),
         title: const Text('All Notifications',
-            style:
-                TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+            style: TextStyle(
+                color: Colors.white, fontWeight: FontWeight.bold)),
         actions: [
           if (widget.notifs.isNotEmpty)
             IconButton(
-              icon: const Icon(Icons.delete_sweep, color: Colors.white),
+              icon: const Icon(Icons.delete_sweep, color: Colors.grey),
               onPressed: widget.onClear,
             ),
         ],
       ),
       body: Column(
         children: [
-          // Filter chips
           Container(
             color: const Color(0xFF1A1A1A),
             padding: const EdgeInsets.symmetric(vertical: 8),
@@ -537,15 +895,11 @@ class _AllNotifsPageState extends State<AllNotifsPage> {
               ),
             ),
           ),
-
-          // Notification list
           Expanded(
             child: _filtered.isEmpty
                 ? Center(
-                    child: Text(
-                      'No notifications yet.',
-                      style: TextStyle(color: Colors.grey[600]),
-                    ),
+                    child: Text('No notifications yet.',
+                        style: TextStyle(color: Colors.grey[600])),
                   )
                 : ListView.builder(
                     padding: const EdgeInsets.all(12),
@@ -556,8 +910,9 @@ class _AllNotifsPageState extends State<AllNotifsPage> {
                           .containsKey(item.packageName);
                       return NotifCard(
                         item: item,
-                        onWhitelist:
-                            isSupported ? () => _whitelist(item) : null,
+                        onWhitelist: isSupported
+                            ? () => _whitelist(item)
+                            : null,
                       );
                     },
                   ),
@@ -598,6 +953,7 @@ class _WhitelistPageState extends State<WhitelistPage> {
         setState(() {});
       }
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Could not open contacts: $e')),
       );
@@ -627,14 +983,13 @@ class _WhitelistPageState extends State<WhitelistPage> {
     return Scaffold(
       backgroundColor: const Color(0xFF0D0D0D),
       appBar: AppBar(
-        backgroundColor: Colors.deepPurple,
+        backgroundColor: const Color(0xFF1A1A1A),
         title: const Text('Whitelist',
-            style:
-                TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+            style: TextStyle(
+                color: Colors.white, fontWeight: FontWeight.bold)),
       ),
       body: Column(
         children: [
-          // App selector
           Container(
             color: const Color(0xFF1A1A1A),
             padding: const EdgeInsets.symmetric(vertical: 8),
@@ -665,8 +1020,6 @@ class _WhitelistPageState extends State<WhitelistPage> {
               ),
             ),
           ),
-
-          // Manual input
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
             child: Row(
@@ -685,8 +1038,8 @@ class _WhitelistPageState extends State<WhitelistPage> {
                           borderSide: BorderSide(color: color)),
                       enabledBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
-                          borderSide:
-                              BorderSide(color: color.withOpacity(0.4))),
+                          borderSide: BorderSide(
+                              color: color.withOpacity(0.4))),
                       focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
                           borderSide: BorderSide(color: color)),
@@ -712,8 +1065,6 @@ class _WhitelistPageState extends State<WhitelistPage> {
               ],
             ),
           ),
-
-          // Contact picker (WhatsApp only)
           if (selectedApp == 'com.whatsapp.w4b' ||
               selectedApp == 'com.whatsapp')
             Padding(
@@ -734,26 +1085,30 @@ class _WhitelistPageState extends State<WhitelistPage> {
                 ),
               ),
             ),
-
-          // Hint
           Padding(
             padding: const EdgeInsets.all(12),
             child: Text(
               selectedApp == 'com.instagram.android' ||
                       selectedApp == 'com.snapchat.android'
-                  ? 'Tip: Go to All tab, find a notification and tap "+ Whitelist" to add automatically.'
-                  : 'Add the name as it appears in notifications, or pick from contacts.',
+                  ? '💡 Go to All tab → find a notification → tap "+ Whitelist"'
+                  : 'Name must match how it appears in notifications.',
               textAlign: TextAlign.center,
               style: TextStyle(color: Colors.grey[600], fontSize: 12),
             ),
           ),
-
-          // Contact list
           Expanded(
             child: contacts.isEmpty
                 ? Center(
-                    child: Text('No contacts added yet.',
-                        style: TextStyle(color: Colors.grey[600])),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.person_add_outlined,
+                            color: Colors.grey[700], size: 48),
+                        const SizedBox(height: 12),
+                        Text('No contacts added yet.',
+                            style: TextStyle(color: Colors.grey[600])),
+                      ],
+                    ),
                   )
                 : ListView.builder(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -767,11 +1122,11 @@ class _WhitelistPageState extends State<WhitelistPage> {
                             color: color.withOpacity(0.3)),
                       ),
                       child: ListTile(
-                        leading:
-                            Icon(Icons.person, color: color, size: 20),
+                        leading: Icon(Icons.person,
+                            color: color, size: 20),
                         title: Text(contacts[i],
-                            style:
-                                const TextStyle(color: Colors.white)),
+                            style: const TextStyle(
+                                color: Colors.white)),
                         trailing: IconButton(
                           icon: const Icon(Icons.close,
                               color: Colors.red, size: 18),

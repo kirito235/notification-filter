@@ -22,8 +22,15 @@ class MainActivity : FlutterActivity() {
         methodChannel = MethodChannel(
             flutterEngine.dartExecutor.binaryMessenger, "notifications"
         )
-        methodChannel?.setMethodCallHandler { _, result ->
-            result.success(null)
+        methodChannel?.setMethodCallHandler { call, result ->
+            when (call.method) {
+                "openNotificationSettings" -> {
+                    val intent = Intent("android.settings.ACTION_NOTIFICATION_LISTENER_SETTINGS")
+                    startActivity(intent)
+                    result.success(null)
+                }
+                else -> result.success(null)
+            }
         }
 
         // Whitelist sync channel — Flutter pushes whitelist to Kotlin
