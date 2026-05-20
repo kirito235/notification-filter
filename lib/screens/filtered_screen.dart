@@ -1,0 +1,123 @@
+import 'package:flutter/material.dart';
+import '../models/notif_item.dart';
+import '../services/whitelist_store.dart';
+import '../constants/theme.dart';
+import '../widgets/notif_card.dart';
+import '../widgets/empty_state.dart';
+
+class FilteredScreen extends StatelessWidget {
+  final List<NotifItem> notifs;
+  final VoidCallback onClear;
+  final VoidCallback onWhitelistChanged;
+
+  const FilteredScreen({
+    super.key,
+    required this.notifs,
+    required this.onClear,
+    required this.onWhitelistChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final store = WhitelistStore.instance;
+    return Scaffold(
+      backgroundColor: AppTheme.background,
+      appBar: AppBar(
+        title: Row(
+          children: [
+            Container(
+              width: 28,
+              height: 28,
+              decoration: BoxDecoration(
+                color: AppTheme.accentSoft,
+                borderRadius: Rd.sm,
+              ),
+              child: const Icon(Icons.shield_rounded,
+                  color: AppTheme.accent, size: 16),
+            ),
+            const SizedBox(width: Sp.sm),
+            const Text('FilterNotif'),
+          ],
+        ),
+        actions: [
+          // Global toggle pill
+          ListenableBuilder(
+            listenable: store,
+            builder: (_, __) => GestureDetector(
+              onTap: () async {
+                await store.setGlobalEnabled(!store.globalEnabled);
+                onWhitelistChanged();
+              },
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 250),
+                margin: const EdgeInsets.only(right: Sp.sm),
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: store.globalEnabled
+                      ? AppTheme.accentSoft
+                      : AppTheme.surfaceElevated,
+                  borderRadius: Rd.md,
+                  border: Border.all(
+                    color: store.globalEnabled
+                        ? AppTheme.accent.withOpacity(0.5)
+                        : AppTheme.surfaceBorder,
+                    width: 0.5,
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 6,
+                      height: 6,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: store.globalEnabled
+                            ? AppTheme.accent
+                            : AppTheme.textMuted,
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      store.globalEnabled ? 'Active' : 'Paused',
+                      style: TextStyle(
+                        color: store.globalEnabled
+                            ? AppTheme.accent
+                            : AppTheme.textMuted,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          if (notifs.isNotEmpty)
+            IconButton(
+              icon: const Icon(Icons.delete_sweep_rounded, size: 20),
+              onPressed: onClear,
+            ),
+        ],
+      ),
+      body: notifs.isEmpty
+          ? EmptyState(
+              icon: Icons.shield_rounded,
+              title: 'All quiet',
+              subtitle: store.whitelist.values.every((s) => s.isEmpty)
+                  ? 'Add contacts to your whitelist\nto start filtering.'
+                  : 'No whitelisted notifications yet.\nGo to All tab to whitelist contacts.',
+            )
+          : ListView.builder(
+              padding: const EdgeInsets.fromLTRB(
+                  Sp.md, Sp.md, Sp.md, Sp.xxl),
+              itemCount: notifs.length,
+              itemBuilder: (ctx, i) => NotifCard(
+                item: notifs[i],
+                index: i,
+              ),
+            ),
+    );
+  }
+}

@@ -1,6 +1,5 @@
 package com.example.notification_filter
 
-import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
@@ -14,85 +13,80 @@ import androidx.core.app.NotificationCompat
 
 class NotificationService : NotificationListenerService() {
 
-    private val filteredApps = setOf(
-        "com.whatsapp.w4b",
-        "com.whatsapp",
-        "com.instagram.android",
-        "com.snapchat.android"
-    )
-
     companion object {
-        const val CHANNEL_ID = "notif_filter_service"
+        const val CHANNEL_ID = "filternotif_service"
         const val NOTIF_ID = 1
     }
 
+    private val filteredApps = setOf(
+        "com.whatsapp.w4b", "com.whatsapp",
+        "com.instagram.android", "com.snapchat.android"
+    )
+
+    private val summaryPatterns = listOf(
+        Regex("\\d+ messages from \\d+ chats"),
+        Regex("\\d+ new messages"),
+        Regex("\\d+ notifications")
+    )
+
     override fun onCreate() {
         super.onCreate()
-        startForegroundService()
+        startForegroundNotif()
+        WhitelistChecker.loadFromPrefs(applicationContext)
     }
 
-    private fun startForegroundService() {
+    private fun startForegroundNotif() {
         val channel = NotificationChannel(
-            CHANNEL_ID,
-            "Notification Filter Service",
+            CHANNEL_ID, "FilterNotif Service",
             NotificationManager.IMPORTANCE_MIN
-        ).apply {
-            description = "Keeps notification filtering active"
-            setShowBadge(false)
-        }
+        ).apply { setShowBadge(false) }
+        getSystemService(NotificationManager::class.java)
+            .createNotificationChannel(channel)
 
-        val manager = getSystemService(NotificationManager::class.java)
-        manager.createNotificationChannel(channel)
-
-        val pendingIntent = PendingIntent.getActivity(
-            this, 0,
-            Intent(this, MainActivity::class.java),
+        val pi = PendingIntent.getActivity(
+            this, 0, Intent(this, MainActivity::class.java),
             PendingIntent.FLAG_IMMUTABLE
         )
-
-        val notification = NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle("Notification Filter Active")
-            .setContentText("Filtering your notifications")
-            .setSmallIcon(android.R.drawable.ic_dialog_info)
-            .setContentIntent(pendingIntent)
-            .setPriority(NotificationCompat.PRIORITY_MIN)
-            .setOngoing(true)
-            .setSilent(true)
-            .build()
-
-        startForeground(NOTIF_ID, notification)
+        startForeground(
+            NOTIF_ID,
+            NotificationCompat.Builder(this, CHANNEL_ID)
+                .setContentTitle("FilterNotif Active")
+                .setContentText("Filtering your notifications")
+                .setSmallIcon(android.R.drawable.ic_dialog_info)
+                .setContentIntent(pi)
+                .setPriority(NotificationCompat.PRIORITY_MIN)
+                .setOngoing(true).setSilent(true).build()
+        )
     }
 
     override fun onListenerConnected() {
         super.onListenerConnected()
-        Log.d("NOTIF_SERVICE", "✅ Listener connected!")
+        Log.d("NOTIF_SERVICE", "✅ Connected")
+        WhitelistChecker.loadFromPrefs(applicationContext)
     }
 
     override fun onNotificationPosted(sbn: StatusBarNotification) {
-        val packageName = sbn.packageName
+        val pkg = sbn.packageName
         val extras = sbn.notification.extras
         val title = extras.getString("android.title") ?: ""
         val text = extras.getCharSequence("android.text")?.toString() ?: ""
 
-        Log.d("NOTIF_SERVICE", "📱 $packageName | $title | $text")
+        if (pkg == applicationContext.packageName) return
+        if (pkg == "android") return
+        if (isSummary(pkg, title, text)) return
 
-        if (packageName in filteredApps) {
-            val isAllowed = WhitelistChecker.isAllowed(packageName, title)
-            if (!isAllowed) {
-                cancelNotification(sbn.key)
-                Log.d("NOTIF_SERVICE", "🚫 Suppressed: $title")
-            }
+        Log.d("NOTIF_SERVICE", "📱 $pkg | $title")
+
+        if (pkg in filteredApps && !WhitelistChecker.isAllowed(pkg, title)) {
+            cancelNotification(sbn.key)
+            Log.d("NOTIF_SERVICE", "🚫 Suppressed: $title")
         }
 
-        // Always send to Flutter
-        val data = mapOf(
-            "packageName" to packageName,
-            "title" to title,
-            "text" to text
-        )
-
         Handler(Looper.getMainLooper()).post {
-            MainActivity.methodChannel?.invokeMethod("onNotification", data)
+            MainActivity.methodChannel?.invokeMethod(
+                "onNotification",
+                mapOf("packageName" to pkg, "title" to title, "text" to text)
+            )
         }
     }
 
@@ -100,8 +94,15 @@ class NotificationService : NotificationListenerService() {
 
     override fun onDestroy() {
         super.onDestroy()
-        // Restart service if killed
-        val intent = Intent(this, NotificationService::class.java)
-        startService(intent)
+        startService(Intent(this, NotificationService::class.java))
+    }
+
+    private fun isSummary(pkg: String, title: String, text: String): Boolean {
+        if (summaryPatterns.any { it.containsMatchIn(text) }) return true
+        if (setOf("WA Business","WhatsApp","Instagram","Snapchat").contains(title)
+            && text.isEmpty()) return true
+        if (pkg == "com.snapchat.android" &&
+            text.contains("new snap", ignoreCase = true)) return true
+        return false
     }
 }
