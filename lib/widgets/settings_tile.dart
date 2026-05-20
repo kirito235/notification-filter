@@ -98,3 +98,23 @@ class SettingsSectionHeader extends StatelessWidget {
     );
   }
 }
+
+class SettingsGroup extends StatelessWidget {
+  final String header;
+  final List<Widget> tiles;
+  const SettingsGroup({super.key, required this.header, required this.tiles});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(Sp.md, Sp.md, Sp.md, 0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SettingsSectionHeader(title: header),
+          ...tiles,
+        ],
+      ),
+    );
+  }
+}

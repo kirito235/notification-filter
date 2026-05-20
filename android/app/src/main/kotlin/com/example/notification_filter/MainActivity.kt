@@ -3,7 +3,9 @@ package com.example.notification_filter
 import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
+import android.net.Uri
 import android.provider.ContactsContract
+import android.provider.Settings
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
@@ -21,44 +23,45 @@ class MainActivity : FlutterActivity() {
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
 
-        // ── Notifications channel ──────────────────────────────────
+        // Notifications channel
         methodChannel = MethodChannel(
             flutterEngine.dartExecutor.binaryMessenger, "notifications"
         )
         methodChannel?.setMethodCallHandler { call, result ->
             when (call.method) {
                 "openNotificationSettings" -> {
-                    val intent = Intent(
-                        "android.settings.ACTION_NOTIFICATION_LISTENER_SETTINGS"
-                    )
-                    startActivity(intent)
+                    startActivity(Intent("android.settings.ACTION_NOTIFICATION_LISTENER_SETTINGS"))
+                    result.success(null)
+                }
+                "openBatterySettings" -> {
+                    try {
+                        val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
+                            data = Uri.parse("package:$packageName")
+                        }
+                        startActivity(intent)
+                    } catch (e: Exception) {
+                        startActivity(Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS))
+                    }
                     result.success(null)
                 }
                 else -> result.success(null)
             }
         }
 
-        // ── Whitelist sync channel ─────────────────────────────────
+        // Whitelist sync channel
         MethodChannel(
             flutterEngine.dartExecutor.binaryMessenger, "whitelist_sync"
         ).setMethodCallHandler { call, result ->
+            val prefs: SharedPreferences =
+                getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            val editor = prefs.edit()
             when (call.method) {
                 "sync" -> {
-                    val prefs: SharedPreferences =
-                        getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-                    val editor = prefs.edit()
                     val args = call.arguments as Map<*, *>
                     for ((pkg, contacts) in args) {
-                        val contactList =
-                            (contacts as List<*>).map { it.toString() }
-                        // Update in-memory checker
-                        WhitelistChecker.updateWhitelist(
-                            pkg.toString(), contactList
-                        )
-                        // Persist to SharedPreferences for when app is closed
-                        editor.putStringSet(
-                            pkg.toString(), contactList.toSet()
-                        )
+                        val list = (contacts as List<*>).map { it.toString() }
+                        WhitelistChecker.updateWhitelist(pkg.toString(), list)
+                        editor.putStringSet(pkg.toString(), list.toSet())
                     }
                     editor.apply()
                     result.success(null)
@@ -66,8 +69,7 @@ class MainActivity : FlutterActivity() {
                 "setGlobalEnabled" -> {
                     val enabled = call.arguments as Boolean
                     WhitelistChecker.setGlobalEnabled(enabled)
-                    val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-                    prefs.edit().putBoolean("global_enabled", enabled).apply()
+                    editor.putBoolean("global_enabled", enabled).apply()
                     result.success(null)
                 }
                 "setAppEnabled" -> {
@@ -75,15 +77,14 @@ class MainActivity : FlutterActivity() {
                     val pkg = args["pkg"] as String
                     val enabled = args["enabled"] as Boolean
                     WhitelistChecker.setAppEnabled(pkg, enabled)
-                    val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-                    prefs.edit().putBoolean("${pkg}_enabled", enabled).apply()
+                    editor.putBoolean("${pkg}_enabled", enabled).apply()
                     result.success(null)
                 }
                 else -> result.notImplemented()
             }
         }
 
-        // ── Contacts picker channel ────────────────────────────────
+        // Contacts picker
         MethodChannel(
             flutterEngine.dartExecutor.binaryMessenger, "contacts"
         ).setMethodCallHandler { call, result ->
@@ -97,9 +98,7 @@ class MainActivity : FlutterActivity() {
         }
     }
 
-    override fun onActivityResult(
-        requestCode: Int, resultCode: Int, data: Intent?
-    ) {
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
         if (requestCode == CONTACT_PICK_CODE) {
             if (resultCode == RESULT_OK && data != null) {
@@ -109,11 +108,9 @@ class MainActivity : FlutterActivity() {
                     null, null, null
                 )
                 cursor?.use {
-                    if (it.moveToFirst()) {
-                        pendingContactResult?.success(it.getString(0))
-                    } else {
-                        pendingContactResult?.success(null)
-                    }
+                    pendingContactResult?.success(
+                        if (it.moveToFirst()) it.getString(0) else null
+                    )
                 }
             } else {
                 pendingContactResult?.success(null)
