@@ -77,7 +77,7 @@ class NotificationService : NotificationListenerService() {
 
         Log.d("NOTIF_SERVICE", "📱 $pkg | $title")
 
-        if (pkg in filteredApps && !WhitelistChecker.isAllowed(pkg, title)) {
+        if (WhitelistChecker.isFilteredApp(pkg) && !WhitelistChecker.isAllowed(pkg, title)) {
             cancelNotification(sbn.key)
             Log.d("NOTIF_SERVICE", "🚫 Suppressed: $title")
         }
