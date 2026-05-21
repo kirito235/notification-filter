@@ -10,7 +10,7 @@ object WhitelistChecker {
 
     private val allowlists = mutableMapOf<String, MutableSet<String>>()
     private val blocklists = mutableMapOf<String, MutableSet<String>>()
-    private val modes = mutableMapOf<String, String>() // "allowlist" or "blocklist"
+    private val modes = mutableMapOf<String, String>()
 
     private val filteredApps = setOf(
         "com.whatsapp.w4b", "com.whatsapp",
@@ -23,52 +23,40 @@ object WhitelistChecker {
         "com.snapchat.android" to true
     )
     private var globalEnabled = true
-
-    // ── Called from Flutter MethodChannel ────────────────────────
+    private var focusModeActive = false
 
     fun updateAllowlist(pkg: String, contacts: List<String>) {
         allowlists[pkg] = contacts.toMutableSet()
-        Log.d("CHECKER", "Allowlist $pkg: $contacts")
     }
 
     fun updateBlocklist(pkg: String, contacts: List<String>) {
         blocklists[pkg] = contacts.toMutableSet()
-        Log.d("CHECKER", "Blocklist $pkg: $contacts")
     }
 
     fun updateMode(pkg: String, mode: String) {
         modes[pkg] = mode
-        Log.d("CHECKER", "Mode $pkg: $mode")
     }
 
-    fun setGlobalEnabled(enabled: Boolean) {
-        globalEnabled = enabled
+    fun setGlobalEnabled(enabled: Boolean) { globalEnabled = enabled }
+    fun setAppEnabled(pkg: String, enabled: Boolean) { perAppEnabled[pkg] = enabled }
+    fun setFocusMode(active: Boolean) {
+        focusModeActive = active
+        Log.d("CHECKER", "Focus mode: $active")
     }
-
-    fun setAppEnabled(pkg: String, enabled: Boolean) {
-        perAppEnabled[pkg] = enabled
-    }
-
-    // ── Load from SharedPreferences (when app is closed) ─────────
 
     fun loadFromPrefs(context: Context) {
         val prefs: SharedPreferences =
             context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-
         for (pkg in filteredApps) {
-            val allow = prefs.getStringSet("${pkg}_allowlist", emptySet()) ?: emptySet()
-            val block = prefs.getStringSet("${pkg}_blocklist", emptySet()) ?: emptySet()
-            val mode = prefs.getString("${pkg}_mode", "allowlist") ?: "allowlist"
-            allowlists[pkg] = allow.toMutableSet()
-            blocklists[pkg] = block.toMutableSet()
-            modes[pkg] = mode
+            allowlists[pkg] = (prefs.getStringSet("${pkg}_allowlist", emptySet()) ?: emptySet()).toMutableSet()
+            blocklists[pkg] = (prefs.getStringSet("${pkg}_blocklist", emptySet()) ?: emptySet()).toMutableSet()
+            modes[pkg] = prefs.getString("${pkg}_mode", "allowlist") ?: "allowlist"
             perAppEnabled[pkg] = prefs.getBoolean("${pkg}_enabled", true)
         }
         globalEnabled = prefs.getBoolean("global_enabled", true)
-        Log.d("CHECKER", "Loaded from prefs. Global: $globalEnabled")
+        focusModeActive = prefs.getBoolean("focus_mode_active", false)
+        Log.d("CHECKER", "Loaded. Focus: $focusModeActive Global: $globalEnabled")
     }
-
-    // ── Core filter logic ─────────────────────────────────────────
 
     fun isFilteredApp(pkg: String): Boolean = pkg in filteredApps
 
@@ -76,22 +64,17 @@ object WhitelistChecker {
         if (!globalEnabled) return true
         if (perAppEnabled[pkg] == false) return true
 
-        val mode = modes[pkg] ?: "allowlist"
+        // Focus mode forces allowlist logic for all apps
+        val mode = if (focusModeActive) "allowlist" else (modes[pkg] ?: "allowlist")
 
         return if (mode == "blocklist") {
-            // Blocklist mode: allow all except explicitly blocked
             val blocked = blocklists[pkg] ?: return true
             if (blocked.isEmpty()) return true
-            !blocked.any { name ->
-                title.lowercase().contains(name.lowercase())
-            }
+            !blocked.any { title.lowercase().contains(it.lowercase()) }
         } else {
-            // Allowlist mode: only allow explicitly allowed
             val allowed = allowlists[pkg] ?: return true
             if (allowed.isEmpty()) return false
-            allowed.any { name ->
-                title.lowercase().contains(name.lowercase())
-            }
+            allowed.any { title.lowercase().contains(it.lowercase()) }
         }
     }
 }

@@ -4,6 +4,7 @@ import '../constants/theme.dart';
 import '../constants/app_info.dart';
 import '../models/app_filter_config.dart';
 import '../services/filter_store.dart';
+import '../services/focus_service.dart';
 import '../widgets/settings_tile.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -20,6 +21,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   Widget build(BuildContext context) {
     final store = FilterStore.instance;
+    final focusSvc = FocusService.instance;
 
     return Scaffold(
       backgroundColor: AppTheme.background,
@@ -34,6 +36,53 @@ class _SettingsScreenState extends State<SettingsScreen> {
       body: ListView(
         padding: const EdgeInsets.only(bottom: Sp.xxl),
         children: [
+          // Focus status card (if active)
+          ListenableBuilder(
+            listenable: focusSvc,
+            builder: (_, __) {
+              if (!focusSvc.isActive) return const SizedBox.shrink();
+              return Padding(
+                padding: const EdgeInsets.fromLTRB(
+                    Sp.md, Sp.md, Sp.md, 0),
+                child: Container(
+                  padding: const EdgeInsets.all(Sp.md),
+                  decoration: BoxDecoration(
+                    color: AppTheme.accentSoft,
+                    borderRadius: Rd.lg,
+                    border: Border.all(
+                        color: AppTheme.accent.withOpacity(0.4),
+                        width: 0.5),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.timer_rounded,
+                          color: AppTheme.accent, size: 18),
+                      const SizedBox(width: Sp.sm),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text('Focus session active',
+                                style: TextStyle(
+                                    color: AppTheme.accent,
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600)),
+                            Text(
+                              '${focusSvc.session.remainingFormatted} remaining · allowlist mode enforced',
+                              style: const TextStyle(
+                                  color: AppTheme.textSecondary,
+                                  fontSize: 12),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+
           // Master switch
           SettingsGroup(
             header: 'Filtering',
@@ -57,7 +106,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ],
           ),
 
-          // Per-app toggles with mode badge
+          // Per-app
           SettingsGroup(
             header: 'Per-App Filtering',
             tiles: AppInfo.names.entries.map((e) {
@@ -78,7 +127,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 trailing: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    // Mode badge
                     Container(
                       padding: const EdgeInsets.symmetric(
                           horizontal: 6, vertical: 2),

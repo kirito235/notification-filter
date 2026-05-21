@@ -56,7 +56,6 @@ class MainActivity : FlutterActivity() {
             val editor = prefs.edit()
 
             when (call.method) {
-                // Legacy allowlist sync
                 "sync" -> {
                     val args = call.arguments as Map<*, *>
                     for ((pkg, contacts) in args) {
@@ -67,7 +66,6 @@ class MainActivity : FlutterActivity() {
                     editor.apply()
                     result.success(null)
                 }
-                // Blocklist sync
                 "syncBlocklist" -> {
                     val args = call.arguments as Map<*, *>
                     for ((pkg, contacts) in args) {
@@ -78,7 +76,6 @@ class MainActivity : FlutterActivity() {
                     editor.apply()
                     result.success(null)
                 }
-                // Mode sync
                 "syncModes" -> {
                     val args = call.arguments as Map<*, *>
                     for ((pkg, mode) in args) {
@@ -100,6 +97,12 @@ class MainActivity : FlutterActivity() {
                     val enabled = args["enabled"] as Boolean
                     WhitelistChecker.setAppEnabled(pkg, enabled)
                     editor.putBoolean("${pkg}_enabled", enabled).apply()
+                    result.success(null)
+                }
+                "setFocusMode" -> {
+                    val active = call.arguments as Boolean
+                    WhitelistChecker.setFocusMode(active)
+                    editor.putBoolean("focus_mode_active", active).apply()
                     result.success(null)
                 }
                 else -> result.notImplemented()

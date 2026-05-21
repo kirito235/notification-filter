@@ -2,6 +2,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/app_filter_config.dart';
+import 'focus_service.dart';
 
 class FilterStore extends ChangeNotifier {
   static const _syncChannel = MethodChannel('whitelist_sync');
@@ -10,7 +11,6 @@ class FilterStore extends ChangeNotifier {
   static FilterStore get instance => _instance;
   FilterStore._();
 
-  // Per-app config
   Map<String, AppFilterConfig> configs = {
     'com.whatsapp.w4b': const AppFilterConfig(),
     'com.whatsapp': const AppFilterConfig(),
@@ -18,7 +18,6 @@ class FilterStore extends ChangeNotifier {
     'com.snapchat.android': const AppFilterConfig(),
   };
 
-  // Per-app enabled toggle
   Map<String, bool> appEnabled = {
     'com.whatsapp.w4b': true,
     'com.whatsapp': true,
@@ -27,8 +26,6 @@ class FilterStore extends ChangeNotifier {
   };
 
   bool globalEnabled = true;
-
-  // ── Persistence ───────────────────────────────────────────────
 
   Future<void> load() async {
     final prefs = await SharedPreferences.getInstance();
@@ -56,11 +53,8 @@ class FilterStore extends ChangeNotifier {
     await prefs.setStringList('${pkg}_blocklist', config.blocklist.toList());
   }
 
-  // ── Native sync ───────────────────────────────────────────────
-
   Future<void> syncToNative() async {
     try {
-      // Sync allowlists (legacy key for backward compat)
       final Map<String, List<String>> allowData = {};
       final Map<String, List<String>> blockData = {};
       final Map<String, String> modeData = {};
@@ -88,12 +82,9 @@ class FilterStore extends ChangeNotifier {
     }
   }
 
-  // ── Allowlist operations ──────────────────────────────────────
-
   Future<void> addToAllowlist(String pkg, String name) async {
     configs[pkg] = configs[pkg]!.copyWith(
-      allowlist: {...configs[pkg]!.allowlist, name},
-    );
+        allowlist: {...configs[pkg]!.allowlist, name});
     await _savePkg(pkg);
     await syncToNative();
     notifyListeners();
@@ -107,12 +98,9 @@ class FilterStore extends ChangeNotifier {
     notifyListeners();
   }
 
-  // ── Blocklist operations ──────────────────────────────────────
-
   Future<void> addToBlocklist(String pkg, String name) async {
     configs[pkg] = configs[pkg]!.copyWith(
-      blocklist: {...configs[pkg]!.blocklist, name},
-    );
+        blocklist: {...configs[pkg]!.blocklist, name});
     await _savePkg(pkg);
     await syncToNative();
     notifyListeners();
@@ -126,16 +114,12 @@ class FilterStore extends ChangeNotifier {
     notifyListeners();
   }
 
-  // ── Mode operations ───────────────────────────────────────────
-
   Future<void> setMode(String pkg, FilterMode mode) async {
     configs[pkg] = configs[pkg]!.copyWith(mode: mode);
     await _savePkg(pkg);
     await syncToNative();
     notifyListeners();
   }
-
-  // ── Global / per-app toggles ──────────────────────────────────
 
   Future<void> setGlobalEnabled(bool val) async {
     globalEnabled = val;
@@ -153,22 +137,25 @@ class FilterStore extends ChangeNotifier {
     notifyListeners();
   }
 
-  // ── Filter logic ──────────────────────────────────────────────
-
   bool isAllowed(String pkg, String title) {
     if (!globalEnabled) return true;
     if (appEnabled[pkg] == false) return true;
     final config = configs[pkg];
     if (config == null) return false;
+
+    // Focus mode forces allowlist logic regardless of per-app mode
+    if (FocusService.instance.isRunning) {
+      final allowlist = config.allowlist;
+      if (allowlist.isEmpty) return false;
+      return allowlist
+          .any((name) => title.toLowerCase().contains(name.toLowerCase()));
+    }
+
     return config.isAllowed(title);
   }
 
   bool isSupported(String pkg) => configs.containsKey(pkg);
-
-  FilterMode modeFor(String pkg) =>
-      configs[pkg]?.mode ?? FilterMode.allowlist;
-
-  // Legacy accessors for screens that still need them
+  FilterMode modeFor(String pkg) => configs[pkg]?.mode ?? FilterMode.allowlist;
   Set<String> allowlistFor(String pkg) => configs[pkg]?.allowlist ?? {};
   Set<String> blocklistFor(String pkg) => configs[pkg]?.blocklist ?? {};
 }
