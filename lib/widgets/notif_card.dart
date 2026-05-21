@@ -6,6 +6,7 @@ import '../constants/theme.dart';
 class NotifCard extends StatefulWidget {
   final NotifItem item;
   final VoidCallback? onWhitelist;
+  final String whitelistLabel;
   final int index;
 
   const NotifCard({
@@ -13,6 +14,7 @@ class NotifCard extends StatefulWidget {
     required this.item,
     required this.index,
     this.onWhitelist,
+    this.whitelistLabel = 'Add to whitelist',
   });
 
   @override
@@ -29,9 +31,7 @@ class _NotifCardState extends State<NotifCard>
   void initState() {
     super.initState();
     _ctrl = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 350),
-    );
+        vsync: this, duration: const Duration(milliseconds: 350));
     _fade = CurvedAnimation(parent: _ctrl, curve: Curves.easeOut);
     _slide = Tween<Offset>(
       begin: const Offset(0, 0.12),
@@ -53,7 +53,6 @@ class _NotifCardState extends State<NotifCard>
   Widget build(BuildContext context) {
     final color = AppInfo.color(widget.item.packageName);
     final softColor = AppInfo.softColor(widget.item.packageName);
-    final appName = AppInfo.name(widget.item.packageName);
 
     return FadeTransition(
       opacity: _fade,
@@ -71,33 +70,26 @@ class _NotifCardState extends State<NotifCard>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Colored top accent bar
-                Container(
-                  height: 2,
-                  color: color.withOpacity(0.6),
-                ),
+                Container(height: 2, color: color.withOpacity(0.6)),
                 Padding(
                   padding: const EdgeInsets.all(Sp.md),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Header row
                       Row(
                         children: [
                           Container(
                             padding: const EdgeInsets.symmetric(
                                 horizontal: 8, vertical: 3),
                             decoration: BoxDecoration(
-                              color: softColor,
-                              borderRadius: Rd.sm,
-                            ),
+                                color: softColor, borderRadius: Rd.sm),
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
                                 Icon(AppInfo.icon(widget.item.packageName),
                                     size: 11, color: color),
                                 const SizedBox(width: 4),
-                                Text(appName,
+                                Text(AppInfo.name(widget.item.packageName),
                                     style: TextStyle(
                                         color: color,
                                         fontSize: 11,
@@ -113,39 +105,27 @@ class _NotifCardState extends State<NotifCard>
                         ],
                       ),
                       const SizedBox(height: Sp.sm + 2),
-
-                      // Title
-                      Text(
-                        widget.item.title,
-                        style: const TextStyle(
-                          color: AppTheme.textPrimary,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                          letterSpacing: -0.2,
-                          height: 1.3,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
+                      Text(widget.item.title,
+                          style: const TextStyle(
+                            color: AppTheme.textPrimary,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            letterSpacing: -0.2,
+                            height: 1.3,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis),
                       const SizedBox(height: 3),
-
-                      // Text
-                      Text(
-                        widget.item.text,
-                        style: const TextStyle(
-                          color: AppTheme.textSecondary,
-                          fontSize: 13,
-                          height: 1.4,
-                        ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-
-                      // Whitelist button
+                      Text(widget.item.text,
+                          style: const TextStyle(
+                              color: AppTheme.textSecondary,
+                              fontSize: 13,
+                              height: 1.4),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis),
                       if (widget.onWhitelist != null) ...[
                         const SizedBox(height: Sp.sm + 2),
-                        const Divider(
-                            height: 1, color: AppTheme.surfaceBorder),
+                        const Divider(height: 1, color: AppTheme.surfaceBorder),
                         const SizedBox(height: Sp.sm),
                         GestureDetector(
                           onTap: widget.onWhitelist,
@@ -155,7 +135,7 @@ class _NotifCardState extends State<NotifCard>
                               Icon(Icons.add_circle_outline_rounded,
                                   size: 14, color: color),
                               const SizedBox(width: 5),
-                              Text('Add to whitelist',
+                              Text(widget.whitelistLabel,
                                   style: TextStyle(
                                       color: color,
                                       fontSize: 12,

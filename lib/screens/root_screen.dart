@@ -3,17 +3,16 @@ import 'package:flutter/services.dart';
 import '../constants/theme.dart';
 import '../constants/app_info.dart';
 import '../models/notif_item.dart';
-import '../services/whitelist_store.dart';
+import '../services/filter_store.dart';
 import 'filtered_screen.dart';
 import 'all_notifs_screen.dart';
-import 'whitelist_screen.dart';
+import 'filter_screen.dart';
 import 'settings_screen.dart';
 
 final DateTime appStartTime = DateTime.now();
 
 class RootScreen extends StatefulWidget {
   const RootScreen({super.key});
-
   @override
   State<RootScreen> createState() => _RootScreenState();
 }
@@ -30,9 +29,7 @@ class _RootScreenState extends State<RootScreen> {
     RegExp(r'\d+ messages from \d+ chats'),
     RegExp(r'\d+ new messages'),
   ];
-  static const _summaryTitles = {
-    'WA Business', 'WhatsApp', 'Instagram', 'Snapchat'
-  };
+  static const _summaryTitles = {'WA Business', 'WhatsApp', 'Instagram', 'Snapchat'};
 
   @override
   void initState() {
@@ -41,7 +38,7 @@ class _RootScreenState extends State<RootScreen> {
   }
 
   Future<void> _init() async {
-    final store = WhitelistStore.instance;
+    final store = FilterStore.instance;
     await store.load();
     await store.syncToNative();
     setState(() => _loaded = true);
@@ -86,8 +83,8 @@ class _RootScreenState extends State<RootScreen> {
     return last.packageName == pkg && last.title == title && diff < 2;
   }
 
-  void _onWhitelistChanged() {
-    final store = WhitelistStore.instance;
+  void _onFilterChanged() {
+    final store = FilterStore.instance;
     setState(() {
       filteredNotifs.clear();
       for (final item in allNotifs) {
@@ -104,8 +101,7 @@ class _RootScreenState extends State<RootScreen> {
       return const Scaffold(
         backgroundColor: AppTheme.background,
         body: Center(
-          child: CircularProgressIndicator(
-              color: AppTheme.accent, strokeWidth: 2),
+          child: CircularProgressIndicator(color: AppTheme.accent, strokeWidth: 2),
         ),
       );
     }
@@ -114,15 +110,15 @@ class _RootScreenState extends State<RootScreen> {
       FilteredScreen(
         notifs: filteredNotifs,
         onClear: () => setState(() => filteredNotifs.clear()),
-        onWhitelistChanged: _onWhitelistChanged,
+        onFilterChanged: _onFilterChanged,
       ),
       AllNotifsScreen(
         notifs: allNotifs,
-        onWhitelistAdded: _onWhitelistChanged,
+        onFilterChanged: _onFilterChanged,
         onClear: () => setState(() => allNotifs.clear()),
       ),
-      WhitelistScreen(onChanged: _onWhitelistChanged),
-      SettingsScreen(onChanged: _onWhitelistChanged),
+      FilterScreen(onChanged: _onFilterChanged),
+      SettingsScreen(onChanged: _onFilterChanged),
     ];
 
     return Scaffold(
@@ -142,35 +138,27 @@ class _RootScreenState extends State<RootScreen> {
             },
             destinations: [
               NavigationDestination(
-                icon: _NavBadge(
-                    count: filteredNotifs.length,
+                icon: _NavBadge(count: filteredNotifs.length,
                     child: const Icon(Icons.shield_outlined, size: 22)),
-                selectedIcon: _NavBadge(
-                    count: filteredNotifs.length,
-                    child: const Icon(Icons.shield_rounded,
-                        size: 22, color: AppTheme.accent)),
+                selectedIcon: _NavBadge(count: filteredNotifs.length,
+                    child: const Icon(Icons.shield_rounded, size: 22, color: AppTheme.accent)),
                 label: 'Filtered',
               ),
               NavigationDestination(
-                icon: _NavBadge(
-                    count: allNotifs.length,
+                icon: _NavBadge(count: allNotifs.length,
                     child: const Icon(Icons.notifications_outlined, size: 22)),
-                selectedIcon: _NavBadge(
-                    count: allNotifs.length,
-                    child: const Icon(Icons.notifications_rounded,
-                        size: 22, color: AppTheme.accent)),
+                selectedIcon: _NavBadge(count: allNotifs.length,
+                    child: const Icon(Icons.notifications_rounded, size: 22, color: AppTheme.accent)),
                 label: 'All',
               ),
               const NavigationDestination(
-                icon: Icon(Icons.manage_accounts_outlined, size: 22),
-                selectedIcon: Icon(Icons.manage_accounts_rounded,
-                    size: 22, color: AppTheme.accent),
-                label: 'Whitelist',
+                icon: Icon(Icons.tune_outlined, size: 22),
+                selectedIcon: Icon(Icons.tune_rounded, size: 22, color: AppTheme.accent),
+                label: 'Filter',
               ),
               const NavigationDestination(
                 icon: Icon(Icons.settings_outlined, size: 22),
-                selectedIcon: Icon(Icons.settings_rounded,
-                    size: 22, color: AppTheme.accent),
+                selectedIcon: Icon(Icons.settings_rounded, size: 22, color: AppTheme.accent),
                 label: 'Settings',
               ),
             ],

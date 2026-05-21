@@ -2,41 +2,61 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../constants/theme.dart';
 import '../constants/app_info.dart';
-import '../services/whitelist_store.dart';
+import '../models/app_filter_config.dart';
+import '../services/filter_store.dart';
 import '../widgets/app_chip.dart';
 import '../widgets/empty_state.dart';
 
-class WhitelistScreen extends StatefulWidget {
+class FilterScreen extends StatefulWidget {
   final VoidCallback onChanged;
-  const WhitelistScreen({super.key, required this.onChanged});
+  const FilterScreen({super.key, required this.onChanged});
 
   @override
-  State<WhitelistScreen> createState() => _WhitelistScreenState();
+  State<FilterScreen> createState() => _FilterScreenState();
 }
 
-class _WhitelistScreenState extends State<WhitelistScreen> {
+class _FilterScreenState extends State<FilterScreen>
+    with SingleTickerProviderStateMixin {
   static const _contactsChannel = MethodChannel('contacts');
   String _selectedApp = 'com.whatsapp.w4b';
   final _ctrl = TextEditingController();
   final _focusNode = FocusNode();
+  late TabController _tabCtrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _tabCtrl = TabController(length: 2, vsync: this);
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    _focusNode.dispose();
+    _tabCtrl.dispose();
+    super.dispose();
+  }
 
   bool get _isWA =>
       _selectedApp == 'com.whatsapp.w4b' || _selectedApp == 'com.whatsapp';
-  bool get _isInstaOrSnap =>
-      _selectedApp == 'com.instagram.android' ||
-      _selectedApp == 'com.snapchat.android';
 
   Future<void> _pickContact() async {
     try {
       final String? name =
           await _contactsChannel.invokeMethod('pickContact');
       if (name != null && name.isNotEmpty) {
-        await WhitelistStore.instance.addContact(_selectedApp, name);
+        final store = FilterStore.instance;
+        final mode = store.modeFor(_selectedApp);
+        if (mode == FilterMode.allowlist) {
+          await store.addToAllowlist(_selectedApp, name);
+        } else {
+          await store.addToBlocklist(_selectedApp, name);
+        }
         widget.onChanged();
         setState(() {});
         HapticFeedback.mediumImpact();
       }
-    } catch (e) {
+    } catch (_) {
       if (!mounted) return;
       _showSnack('Could not open contacts');
     }
@@ -45,16 +65,26 @@ class _WhitelistScreenState extends State<WhitelistScreen> {
   Future<void> _addManual() async {
     final name = _ctrl.text.trim();
     if (name.isEmpty) return;
-    await WhitelistStore.instance.addContact(_selectedApp, name);
+    final store = FilterStore.instance;
+    final mode = store.modeFor(_selectedApp);
+    if (mode == FilterMode.allowlist) {
+      await store.addToAllowlist(_selectedApp, name);
+    } else {
+      await store.addToBlocklist(_selectedApp, name);
+    }
     widget.onChanged();
     setState(() => _ctrl.clear());
     _focusNode.unfocus();
     HapticFeedback.mediumImpact();
   }
 
-  Future<void> _remove(String name) async {
+  Future<void> _remove(String name, FilterMode mode) async {
     HapticFeedback.lightImpact();
-    await WhitelistStore.instance.removeContact(_selectedApp, name);
+    if (mode == FilterMode.allowlist) {
+      await FilterStore.instance.removeFromAllowlist(_selectedApp, name);
+    } else {
+      await FilterStore.instance.removeFromBlocklist(_selectedApp, name);
+    }
     widget.onChanged();
     setState(() {});
   }
@@ -66,29 +96,32 @@ class _WhitelistScreenState extends State<WhitelistScreen> {
       shape: RoundedRectangleBorder(borderRadius: Rd.md),
       margin: const EdgeInsets.all(Sp.md),
       content: Text(msg,
-          style: const TextStyle(
-              color: AppTheme.textPrimary, fontSize: 13)),
+          style: const TextStyle(color: AppTheme.textPrimary, fontSize: 13)),
     ));
   }
 
   @override
-  void dispose() {
-    _ctrl.dispose();
-    _focusNode.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
-    final store = WhitelistStore.instance;
-    final contacts = store.whitelist[_selectedApp]?.toList() ?? [];
+    final store = FilterStore.instance;
+    final config = store.configs[_selectedApp]!;
     final color = AppInfo.color(_selectedApp);
+    final mode = config.mode;
+
+    // Sync tab controller with mode
+    final targetTab = mode == FilterMode.allowlist ? 0 : 1;
+    if (_tabCtrl.index != targetTab) {
+      _tabCtrl.animateTo(targetTab);
+    }
+
+    final activeList = mode == FilterMode.allowlist
+        ? config.allowlist.toList()
+        : config.blocklist.toList();
 
     return Scaffold(
       backgroundColor: AppTheme.background,
       appBar: AppBar(
         backgroundColor: AppTheme.surface,
-        title: const Text('Whitelist'),
+        title: const Text('Filter Lists'),
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(0.5),
           child: Container(height: 0.5, color: AppTheme.surfaceBorder),
@@ -120,13 +153,63 @@ class _WhitelistScreenState extends State<WhitelistScreen> {
           ),
           Container(height: 0.5, color: AppTheme.surfaceBorder),
 
+          // Mode toggle
+          Container(
+            color: AppTheme.surface,
+            padding: const EdgeInsets.fromLTRB(Sp.md, Sp.md, Sp.md, Sp.sm),
+            child: _ModeToggle(
+              mode: mode,
+              color: color,
+              onChanged: (newMode) async {
+                await store.setMode(_selectedApp, newMode);
+                widget.onChanged();
+                setState(() {});
+              },
+            ),
+          ),
+
+          // Mode description
+          Container(
+            color: AppTheme.surface,
+            padding: const EdgeInsets.fromLTRB(Sp.md, 0, Sp.md, Sp.md),
+            child: Container(
+              padding: const EdgeInsets.all(Sp.sm + 2),
+              decoration: BoxDecoration(
+                color: color.withOpacity(0.08),
+                borderRadius: Rd.md,
+                border: Border.all(color: color.withOpacity(0.2), width: 0.5),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    mode == FilterMode.allowlist
+                        ? Icons.check_circle_outline_rounded
+                        : Icons.block_rounded,
+                    color: color,
+                    size: 14,
+                  ),
+                  const SizedBox(width: Sp.sm),
+                  Expanded(
+                    child: Text(
+                      mode == FilterMode.allowlist
+                          ? 'Only contacts in this list will receive notifications. Everyone else is silently blocked.'
+                          : 'Everyone receives notifications EXCEPT contacts in this list.',
+                      style: TextStyle(
+                          color: color, fontSize: 12, height: 1.4),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          Container(height: 0.5, color: AppTheme.surfaceBorder),
+
           // Input area
           Container(
             color: AppTheme.surface,
             padding: const EdgeInsets.all(Sp.md),
             child: Column(
               children: [
-                // Text input row
                 Row(
                   children: [
                     Expanded(
@@ -142,12 +225,14 @@ class _WhitelistScreenState extends State<WhitelistScreen> {
                           focusNode: _focusNode,
                           style: const TextStyle(
                               color: AppTheme.textPrimary, fontSize: 14),
-                          decoration: const InputDecoration(
-                            hintText: 'Type name manually...',
-                            hintStyle: TextStyle(
+                          decoration: InputDecoration(
+                            hintText: mode == FilterMode.allowlist
+                                ? 'Add to allowlist...'
+                                : 'Add to blocklist...',
+                            hintStyle: const TextStyle(
                                 color: AppTheme.textMuted, fontSize: 14),
                             border: InputBorder.none,
-                            contentPadding: EdgeInsets.symmetric(
+                            contentPadding: const EdgeInsets.symmetric(
                                 horizontal: Sp.md, vertical: Sp.sm + 2),
                           ),
                           onSubmitted: (_) => _addManual(),
@@ -170,16 +255,14 @@ class _WhitelistScreenState extends State<WhitelistScreen> {
                     ),
                   ],
                 ),
-
-                // Contact picker — WhatsApp only
                 if (_isWA) ...[
                   const SizedBox(height: Sp.sm),
                   GestureDetector(
                     onTap: _pickContact,
                     child: Container(
                       width: double.infinity,
-                      padding: const EdgeInsets.symmetric(
-                          vertical: Sp.sm + 2),
+                      padding:
+                          const EdgeInsets.symmetric(vertical: Sp.sm + 2),
                       decoration: BoxDecoration(
                         color: color.withOpacity(0.08),
                         borderRadius: Rd.md,
@@ -189,8 +272,7 @@ class _WhitelistScreenState extends State<WhitelistScreen> {
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(Icons.contacts_rounded,
-                              color: color, size: 16),
+                          Icon(Icons.contacts_rounded, color: color, size: 16),
                           const SizedBox(width: Sp.sm),
                           Text('Pick from contacts',
                               style: TextStyle(
@@ -202,9 +284,7 @@ class _WhitelistScreenState extends State<WhitelistScreen> {
                     ),
                   ),
                 ],
-
-                // Hint for Insta/Snap
-                if (_isInstaOrSnap) ...[
+                if (!_isWA && mode == FilterMode.allowlist) ...[
                   const SizedBox(height: Sp.sm),
                   Container(
                     padding: const EdgeInsets.all(Sp.sm + 2),
@@ -219,7 +299,7 @@ class _WhitelistScreenState extends State<WhitelistScreen> {
                         const SizedBox(width: Sp.sm),
                         const Expanded(
                           child: Text(
-                            'Go to All tab → find a notification → tap "Add to whitelist"',
+                            'Go to All tab → find a notification → tap "Add to allowlist"',
                             style: TextStyle(
                                 color: AppTheme.accent,
                                 fontSize: 12,
@@ -237,22 +317,27 @@ class _WhitelistScreenState extends State<WhitelistScreen> {
 
           // Contact list
           Expanded(
-            child: contacts.isEmpty
+            child: activeList.isEmpty
                 ? EmptyState(
-                    icon: Icons.person_add_outlined,
-                    title: 'No contacts yet',
-                    subtitle: _isInstaOrSnap
-                        ? 'Use the All tab to add contacts from your notification log.'
-                        : 'Add names manually or pick from your contacts.',
+                    icon: mode == FilterMode.allowlist
+                        ? Icons.person_add_outlined
+                        : Icons.block_outlined,
+                    title: mode == FilterMode.allowlist
+                        ? 'No allowlist contacts'
+                        : 'No blocked contacts',
+                    subtitle: mode == FilterMode.allowlist
+                        ? 'Add people whose notifications you want to receive.'
+                        : 'Add people whose notifications you want to silence.',
                   )
                 : ListView.builder(
                     padding: const EdgeInsets.fromLTRB(
                         Sp.md, Sp.md, Sp.md, Sp.xxl),
-                    itemCount: contacts.length,
+                    itemCount: activeList.length,
                     itemBuilder: (ctx, i) => _ContactTile(
-                      name: contacts[i],
+                      name: activeList[i],
                       color: color,
-                      onRemove: () => _remove(contacts[i]),
+                      mode: mode,
+                      onRemove: () => _remove(activeList[i], mode),
                     ),
                   ),
           ),
@@ -262,19 +347,123 @@ class _WhitelistScreenState extends State<WhitelistScreen> {
   }
 }
 
+// ── Mode Toggle Widget ────────────────────────────────────────────
+
+class _ModeToggle extends StatelessWidget {
+  final FilterMode mode;
+  final Color color;
+  final ValueChanged<FilterMode> onChanged;
+
+  const _ModeToggle({
+    required this.mode,
+    required this.color,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppTheme.surfaceElevated,
+        borderRadius: Rd.lg,
+        border: Border.all(color: AppTheme.surfaceBorder, width: 0.5),
+      ),
+      child: Row(
+        children: [
+          _Tab(
+            label: 'Allowlist',
+            icon: Icons.check_circle_outline_rounded,
+            isSelected: mode == FilterMode.allowlist,
+            color: const Color(0xFF25D366),
+            onTap: () => onChanged(FilterMode.allowlist),
+          ),
+          _Tab(
+            label: 'Blocklist',
+            icon: Icons.block_rounded,
+            isSelected: mode == FilterMode.blocklist,
+            color: Colors.redAccent,
+            onTap: () => onChanged(FilterMode.blocklist),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _Tab extends StatelessWidget {
+  final String label;
+  final IconData icon;
+  final bool isSelected;
+  final Color color;
+  final VoidCallback onTap;
+
+  const _Tab({
+    required this.label,
+    required this.icon,
+    required this.isSelected,
+    required this.color,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: GestureDetector(
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          curve: Curves.easeOut,
+          margin: const EdgeInsets.all(3),
+          padding: const EdgeInsets.symmetric(vertical: 10),
+          decoration: BoxDecoration(
+            color: isSelected ? color.withOpacity(0.15) : Colors.transparent,
+            borderRadius: Rd.md,
+            border: isSelected
+                ? Border.all(color: color.withOpacity(0.4), width: 1)
+                : null,
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon,
+                  size: 15,
+                  color: isSelected ? color : AppTheme.textMuted),
+              const SizedBox(width: 6),
+              Text(
+                label,
+                style: TextStyle(
+                  color: isSelected ? color : AppTheme.textMuted,
+                  fontSize: 13,
+                  fontWeight:
+                      isSelected ? FontWeight.w600 : FontWeight.w400,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ── Contact Tile ──────────────────────────────────────────────────
+
 class _ContactTile extends StatelessWidget {
   final String name;
   final Color color;
+  final FilterMode mode;
   final VoidCallback onRemove;
 
   const _ContactTile({
     required this.name,
     required this.color,
+    required this.mode,
     required this.onRemove,
   });
 
   @override
   Widget build(BuildContext context) {
+    final isBlock = mode == FilterMode.blocklist;
     return Container(
       margin: const EdgeInsets.only(bottom: Sp.sm),
       padding: const EdgeInsets.symmetric(
@@ -290,17 +479,22 @@ class _ContactTile extends StatelessWidget {
             width: 34,
             height: 34,
             decoration: BoxDecoration(
-              color: color.withOpacity(0.12),
+              color: isBlock
+                  ? Colors.redAccent.withOpacity(0.12)
+                  : color.withOpacity(0.12),
               borderRadius: Rd.sm,
             ),
             child: Center(
-              child: Text(
-                name.isNotEmpty ? name[0].toUpperCase() : '?',
-                style: TextStyle(
-                    color: color,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600),
-              ),
+              child: isBlock
+                  ? const Icon(Icons.block_rounded,
+                      color: Colors.redAccent, size: 16)
+                  : Text(
+                      name.isNotEmpty ? name[0].toUpperCase() : '?',
+                      style: TextStyle(
+                          color: color,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600),
+                    ),
             ),
           ),
           const SizedBox(width: Sp.md - 2),

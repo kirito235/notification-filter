@@ -23,7 +23,7 @@ class MainActivity : FlutterActivity() {
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
 
-        // Notifications channel
+        // ── Notifications channel ──────────────────────────────────
         methodChannel = MethodChannel(
             flutterEngine.dartExecutor.binaryMessenger, "notifications"
         )
@@ -35,9 +35,8 @@ class MainActivity : FlutterActivity() {
                 }
                 "openBatterySettings" -> {
                     try {
-                        val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
-                            data = Uri.parse("package:$packageName")
-                        }
+                        val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS)
+                            .apply { data = Uri.parse("package:$packageName") }
                         startActivity(intent)
                     } catch (e: Exception) {
                         startActivity(Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS))
@@ -48,20 +47,43 @@ class MainActivity : FlutterActivity() {
             }
         }
 
-        // Whitelist sync channel
+        // ── Whitelist sync channel ─────────────────────────────────
         MethodChannel(
             flutterEngine.dartExecutor.binaryMessenger, "whitelist_sync"
         ).setMethodCallHandler { call, result ->
             val prefs: SharedPreferences =
                 getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             val editor = prefs.edit()
+
             when (call.method) {
+                // Legacy allowlist sync
                 "sync" -> {
                     val args = call.arguments as Map<*, *>
                     for ((pkg, contacts) in args) {
                         val list = (contacts as List<*>).map { it.toString() }
-                        WhitelistChecker.updateWhitelist(pkg.toString(), list)
-                        editor.putStringSet(pkg.toString(), list.toSet())
+                        WhitelistChecker.updateAllowlist(pkg.toString(), list)
+                        editor.putStringSet("${pkg}_allowlist", list.toSet())
+                    }
+                    editor.apply()
+                    result.success(null)
+                }
+                // Blocklist sync
+                "syncBlocklist" -> {
+                    val args = call.arguments as Map<*, *>
+                    for ((pkg, contacts) in args) {
+                        val list = (contacts as List<*>).map { it.toString() }
+                        WhitelistChecker.updateBlocklist(pkg.toString(), list)
+                        editor.putStringSet("${pkg}_blocklist", list.toSet())
+                    }
+                    editor.apply()
+                    result.success(null)
+                }
+                // Mode sync
+                "syncModes" -> {
+                    val args = call.arguments as Map<*, *>
+                    for ((pkg, mode) in args) {
+                        WhitelistChecker.updateMode(pkg.toString(), mode.toString())
+                        editor.putString("${pkg}_mode", mode.toString())
                     }
                     editor.apply()
                     result.success(null)
@@ -84,7 +106,7 @@ class MainActivity : FlutterActivity() {
             }
         }
 
-        // Contacts picker
+        // ── Contacts picker channel ────────────────────────────────
         MethodChannel(
             flutterEngine.dartExecutor.binaryMessenger, "contacts"
         ).setMethodCallHandler { call, result ->

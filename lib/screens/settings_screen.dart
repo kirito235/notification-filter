@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../constants/theme.dart';
 import '../constants/app_info.dart';
-import '../services/whitelist_store.dart';
+import '../models/app_filter_config.dart';
+import '../services/filter_store.dart';
 import '../widgets/settings_tile.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -18,7 +19,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final store = WhitelistStore.instance;
+    final store = FilterStore.instance;
 
     return Scaffold(
       backgroundColor: AppTheme.background,
@@ -56,26 +57,60 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ],
           ),
 
-          // Per-app toggles
+          // Per-app toggles with mode badge
           SettingsGroup(
             header: 'Per-App Filtering',
             tiles: AppInfo.names.entries.map((e) {
               final color = AppInfo.color(e.key);
+              final config = store.configs[e.key];
+              final mode = config?.mode ?? FilterMode.allowlist;
+              final count = mode == FilterMode.allowlist
+                  ? config?.allowlist.length ?? 0
+                  : config?.blocklist.length ?? 0;
+              final modeLabel =
+                  mode == FilterMode.allowlist ? 'Allowlist' : 'Blocklist';
+
               return SettingsTile(
                 icon: AppInfo.icon(e.key),
                 iconColor: color,
                 title: e.value,
-                subtitle:
-                    '${store.whitelist[e.key]?.length ?? 0} contacts whitelisted',
-                trailing: Switch(
-                  value: store.appEnabled[e.key] ?? true,
-                  activeColor: color,
-                  onChanged: (val) async {
-                    HapticFeedback.selectionClick();
-                    await store.setAppEnabled(e.key, val);
-                    widget.onChanged();
-                    setState(() {});
-                  },
+                subtitle: '$count contacts · $modeLabel mode',
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Mode badge
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: mode == FilterMode.allowlist
+                            ? const Color(0xFF25D366).withOpacity(0.12)
+                            : Colors.redAccent.withOpacity(0.12),
+                        borderRadius: Rd.sm,
+                      ),
+                      child: Text(
+                        modeLabel,
+                        style: TextStyle(
+                          color: mode == FilterMode.allowlist
+                              ? const Color(0xFF25D366)
+                              : Colors.redAccent,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: Sp.sm),
+                    Switch(
+                      value: store.appEnabled[e.key] ?? true,
+                      activeColor: color,
+                      onChanged: (val) async {
+                        HapticFeedback.selectionClick();
+                        await store.setAppEnabled(e.key, val);
+                        widget.onChanged();
+                        setState(() {});
+                      },
+                    ),
+                  ],
                 ),
               );
             }).toList(),
@@ -89,35 +124,25 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 icon: Icons.notifications_active_rounded,
                 iconColor: Colors.orange,
                 title: 'Notification access',
-                subtitle: 'Open system notification access settings',
+                subtitle: 'Required for filtering to work',
                 trailing: const Icon(Icons.arrow_forward_ios_rounded,
                     color: AppTheme.textMuted, size: 14),
                 onTap: () async {
                   try {
-                    await _platform
-                        .invokeMethod('openNotificationSettings');
+                    await _platform.invokeMethod('openNotificationSettings');
                   } catch (_) {}
                 },
               ),
-            ],
-          ),
-
-          // Battery
-          SettingsGroup(
-            header: 'Battery',
-            tiles: [
               SettingsTile(
                 icon: Icons.battery_saver_rounded,
                 iconColor: const Color(0xFF4ADE80),
                 title: 'Battery optimization',
-                subtitle:
-                    'Disable battery optimization to keep filtering active',
+                subtitle: 'Disable to keep filtering active in background',
                 trailing: const Icon(Icons.arrow_forward_ios_rounded,
                     color: AppTheme.textMuted, size: 14),
                 onTap: () async {
                   try {
-                    await _platform
-                        .invokeMethod('openBatterySettings');
+                    await _platform.invokeMethod('openBatterySettings');
                   } catch (_) {}
                 },
               ),
