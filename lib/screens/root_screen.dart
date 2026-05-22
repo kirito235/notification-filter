@@ -30,16 +30,31 @@ class _RootScreenState extends State<RootScreen> {
   static final _summaryPatterns = [
     RegExp(r'\d+ messages from \d+ chats'),
     RegExp(r'\d+ new messages'),
+    RegExp(r'^\d+ new Snaps?$'),
+    RegExp(r'^You have \d+ new'),
+    RegExp(r'^Updating messages'),   // FIX 2
   ];
+
   static const _summaryTitles = {
-    'WA Business', 'WhatsApp', 'Instagram', 'Snapchat'
+    'WA Business', 'WhatsApp', 'Instagram', 'Snapchat',
+    'Updating messages', 'Updating messages…',
   };
+
+  // FIX 5: WhatsApp system notification titles
+  static const _waSystemTitles = {
+    'Checking for messages…', 'Checking for messages',
+    'Ongoing call', 'Incoming call', 'Ringing…', 'Ringing',
+    'Connected', 'Video call', 'Voice call',
+    'WhatsApp Web', 'End-to-end encrypted', 'Tap to return to call',
+  };
+
+  // FIX 4: Merge WA + WA Business — treat both as same app
+  static const _waPackages = {'com.whatsapp', 'com.whatsapp.w4b'};
 
   @override
   void initState() {
     super.initState();
     _init();
-    // Rebuild when focus state changes (badge update)
     FocusService.instance.addListener(_onFocusChanged);
   }
 
@@ -61,12 +76,20 @@ class _RootScreenState extends State<RootScreen> {
       if (call.method != 'onNotification') return;
       final data = Map<String, String>.from(call.arguments);
       final pkg = data['packageName'] ?? '';
-      final title = data['title'] ?? '';
+      String title = data['title'] ?? '';
       final text = data['text'] ?? '';
 
       if (!AppInfo.isSupported(pkg)) return;
       if (DateTime.now().isBefore(appStartTime)) return;
-      if (_isSummary(title, text)) return;
+      if (_isSummary(pkg, title, text)) return;
+
+      // FIX 5: skip WA system notifications
+      if (_waPackages.contains(pkg) && _waSystemTitles.contains(title)) return;
+      if (_waPackages.contains(pkg) && _isWaSystemText(text)) return;
+
+      // FIX 3: normalize Instagram title
+      title = _normalizeTitle(pkg, title);
+
       if (_isDuplicate(pkg, title)) return;
 
       final allowed = store.isAllowed(pkg, title);
@@ -78,13 +101,9 @@ class _RootScreenState extends State<RootScreen> {
         isAllowed: allowed,
       );
 
-      // Track focus stats
       if (FocusService.instance.isRunning) {
-        if (allowed) {
-          FocusService.instance.recordAllowed();
-        } else {
-          FocusService.instance.recordSuppressed();
-        }
+        if (allowed) FocusService.instance.recordAllowed();
+        else FocusService.instance.recordSuppressed();
       }
 
       setState(() {
@@ -94,9 +113,29 @@ class _RootScreenState extends State<RootScreen> {
     });
   }
 
-  bool _isSummary(String title, String text) {
+  // FIX 3: "justvaibhavv: William" → "William"
+  String _normalizeTitle(String pkg, String title) {
+    if (pkg == 'com.instagram.android' && title.contains(': ')) {
+      return title.substring(title.indexOf(': ') + 2).trim();
+    }
+    return title;
+  }
+
+  // FIX 5: WhatsApp system text patterns
+  bool _isWaSystemText(String text) {
+    if (text.contains('Checking for messages', caseSensitive: false)) return true;
+    if (text.contains('end-to-end encrypted', caseSensitive: false)) return true;
+    if (text.contains('Tap to return to call', caseSensitive: false)) return true;
+    return false;
+  }
+
+  bool _isSummary(String pkg, String title, String text) {
     if (_summaryTitles.contains(title) && text.isEmpty) return true;
-    return _summaryPatterns.any((p) => p.hasMatch(text));
+    if (_summaryPatterns.any((p) => p.hasMatch(text))) return true;
+    if (_summaryPatterns.any((p) => p.hasMatch(title))) return true;
+    // FIX 2: Snapchat "Updating messages" as title
+    if (pkg == 'com.snapchat.android' && title.startsWith('Updating')) return true;
+    return false;
   }
 
   bool _isDuplicate(String pkg, String title) {
@@ -222,7 +261,6 @@ class _NavBadge extends StatelessWidget {
   }
 }
 
-// Pulsing green dot when focus is active
 class _PulsingIcon extends StatefulWidget {
   const _PulsingIcon();
   @override
@@ -264,9 +302,10 @@ class _PulsingIconState extends State<_PulsingIcon>
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 color: Color.lerp(
-                    const Color(0xFF25D366),
-                    const Color(0xFF25D366).withOpacity(0.4),
-                    _anim.value),
+                  const Color(0xFF25D366),
+                  const Color(0xFF25D366).withOpacity(0.4),
+                  _anim.value,
+                ),
               ),
             ),
           ),

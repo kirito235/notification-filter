@@ -2,7 +2,15 @@ import 'package:flutter/material.dart';
 import 'theme.dart';
 
 class AppInfo {
+  // FIX 4: Only show one WhatsApp entry in UI (handles both packages)
   static const Map<String, String> names = {
+    'com.whatsapp': 'WhatsApp',
+    'com.instagram.android': 'Instagram',
+    'com.snapchat.android': 'Snapchat',
+  };
+
+  // Display names including WA Business for notification cards
+  static const Map<String, String> displayNames = {
     'com.whatsapp.w4b': 'WhatsApp Business',
     'com.whatsapp': 'WhatsApp',
     'com.instagram.android': 'Instagram',
@@ -30,6 +38,7 @@ class AppInfo {
     'com.snapchat.android': Icons.crop_square_rounded,
   };
 
+  // FIX 4: Both WA packages are supported
   static const List<String> supportedApps = [
     'com.whatsapp.w4b',
     'com.whatsapp',
@@ -37,9 +46,11 @@ class AppInfo {
     'com.snapchat.android',
   ];
 
-  static String name(String pkg) => names[pkg] ?? pkg;
+  static String name(String pkg) => displayNames[pkg] ?? pkg;
   static Color color(String pkg) => colors[pkg] ?? AppTheme.textSecondary;
-  static Color softColor(String pkg) => softColors[pkg] ?? AppTheme.surfaceElevated;
-  static IconData icon(String pkg) => icons[pkg] ?? Icons.notifications_rounded;
+  static Color softColor(String pkg) =>
+      softColors[pkg] ?? AppTheme.surfaceElevated;
+  static IconData icon(String pkg) =>
+      icons[pkg] ?? Icons.notifications_rounded;
   static bool isSupported(String pkg) => supportedApps.contains(pkg);
 }

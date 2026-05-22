@@ -1,9 +1,7 @@
-/// Represents the filtering configuration for a single app.
-/// Each app has a mode (allowlist/blocklist) and two separate contact lists.
 class AppFilterConfig {
   final FilterMode mode;
-  final Set<String> allowlist; // shown/allowed through
-  final Set<String> blocklist; // suppressed/blocked
+  final Set<String> allowlist;
+  final Set<String> blocklist;
 
   const AppFilterConfig({
     this.mode = FilterMode.allowlist,
@@ -24,15 +22,14 @@ class AppFilterConfig {
     );
   }
 
-  /// Returns true if this notification title should be shown to the user.
   bool isAllowed(String title) {
     if (mode == FilterMode.allowlist) {
-      if (allowlist.isEmpty) return false; // no whitelist = block all
+      // FIX 1: empty allowlist = block everything, not allow everything
+      if (allowlist.isEmpty) return false;
       return allowlist.any(
           (name) => title.toLowerCase().contains(name.toLowerCase()));
     } else {
-      // blocklist mode — allow all except explicitly blocked
-      if (blocklist.isEmpty) return true; // no blocklist = allow all
+      if (blocklist.isEmpty) return true;
       return !blocklist.any(
           (name) => title.toLowerCase().contains(name.toLowerCase()));
     }

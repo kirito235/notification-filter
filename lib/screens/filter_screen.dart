@@ -18,27 +18,22 @@ class FilterScreen extends StatefulWidget {
 class _FilterScreenState extends State<FilterScreen>
     with SingleTickerProviderStateMixin {
   static const _contactsChannel = MethodChannel('contacts');
-  String _selectedApp = 'com.whatsapp.w4b';
+
+  // FIX 4: Only 3 entries in UI (WA Business merged into WhatsApp)
+  String _selectedApp = 'com.whatsapp';
   final _ctrl = TextEditingController();
   final _focusNode = FocusNode();
-  late TabController _tabCtrl;
-
-  @override
-  void initState() {
-    super.initState();
-    _tabCtrl = TabController(length: 2, vsync: this);
-  }
 
   @override
   void dispose() {
     _ctrl.dispose();
     _focusNode.dispose();
-    _tabCtrl.dispose();
     super.dispose();
   }
 
-  bool get _isWA =>
-      _selectedApp == 'com.whatsapp.w4b' || _selectedApp == 'com.whatsapp';
+  bool get _isWA => _selectedApp == 'com.whatsapp';
+  bool get _isInstagram => _selectedApp == 'com.instagram.android';
+  bool get _isSnapchat => _selectedApp == 'com.snapchat.android';
 
   Future<void> _pickContact() async {
     try {
@@ -107,12 +102,6 @@ class _FilterScreenState extends State<FilterScreen>
     final color = AppInfo.color(_selectedApp);
     final mode = config.mode;
 
-    // Sync tab controller with mode
-    final targetTab = mode == FilterMode.allowlist ? 0 : 1;
-    if (_tabCtrl.index != targetTab) {
-      _tabCtrl.animateTo(targetTab);
-    }
-
     final activeList = mode == FilterMode.allowlist
         ? config.allowlist.toList()
         : config.blocklist.toList();
@@ -129,7 +118,7 @@ class _FilterScreenState extends State<FilterScreen>
       ),
       body: Column(
         children: [
-          // App selector
+          // FIX 4: Only 3 app chips (WA covers both packages)
           Container(
             color: AppTheme.surface,
             padding: const EdgeInsets.symmetric(
@@ -185,14 +174,13 @@ class _FilterScreenState extends State<FilterScreen>
                     mode == FilterMode.allowlist
                         ? Icons.check_circle_outline_rounded
                         : Icons.block_rounded,
-                    color: color,
-                    size: 14,
+                    color: color, size: 14,
                   ),
                   const SizedBox(width: Sp.sm),
                   Expanded(
                     child: Text(
                       mode == FilterMode.allowlist
-                          ? 'Only contacts in this list will receive notifications. Everyone else is silently blocked.'
+                          ? 'Only contacts in this list will receive notifications.'
                           : 'Everyone receives notifications EXCEPT contacts in this list.',
                       style: TextStyle(
                           color: color, fontSize: 12, height: 1.4),
@@ -243,26 +231,24 @@ class _FilterScreenState extends State<FilterScreen>
                     GestureDetector(
                       onTap: _addManual,
                       child: Container(
-                        width: 44,
-                        height: 44,
+                        width: 44, height: 44,
                         decoration: BoxDecoration(
-                          color: color,
-                          borderRadius: Rd.md,
-                        ),
+                            color: color, borderRadius: Rd.md),
                         child: const Icon(Icons.add_rounded,
                             color: Colors.white, size: 20),
                       ),
                     ),
                   ],
                 ),
+
+                // Contact picker for WhatsApp only
                 if (_isWA) ...[
                   const SizedBox(height: Sp.sm),
                   GestureDetector(
                     onTap: _pickContact,
                     child: Container(
                       width: double.infinity,
-                      padding:
-                          const EdgeInsets.symmetric(vertical: Sp.sm + 2),
+                      padding: const EdgeInsets.symmetric(vertical: Sp.sm + 2),
                       decoration: BoxDecoration(
                         color: color.withOpacity(0.08),
                         borderRadius: Rd.md,
@@ -284,26 +270,53 @@ class _FilterScreenState extends State<FilterScreen>
                     ),
                   ),
                 ],
-                if (!_isWA && mode == FilterMode.allowlist) ...[
+
+                // FIX 3: Instagram hint — mention display name not username
+                if (_isInstagram) ...[
                   const SizedBox(height: Sp.sm),
                   Container(
                     padding: const EdgeInsets.all(Sp.sm + 2),
                     decoration: BoxDecoration(
-                      color: AppTheme.accentSoft,
-                      borderRadius: Rd.md,
-                    ),
-                    child: Row(
+                        color: AppTheme.accentSoft, borderRadius: Rd.md),
+                    child: const Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Icon(Icons.lightbulb_outline_rounded,
+                        Icon(Icons.lightbulb_outline_rounded,
                             color: AppTheme.accent, size: 14),
-                        const SizedBox(width: Sp.sm),
-                        const Expanded(
+                        SizedBox(width: Sp.sm),
+                        Expanded(
                           child: Text(
-                            'Go to All tab → find a notification → tap "Add to allowlist"',
+                            'Instagram shows the sender\'s display name (not username). '
+                            'Go to All tab → tap a notification → "Add to list" to whitelist automatically.',
                             style: TextStyle(
                                 color: AppTheme.accent,
-                                fontSize: 12,
-                                height: 1.4),
+                                fontSize: 12, height: 1.4),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+
+                // Snapchat hint
+                if (_isSnapchat) ...[
+                  const SizedBox(height: Sp.sm),
+                  Container(
+                    padding: const EdgeInsets.all(Sp.sm + 2),
+                    decoration: BoxDecoration(
+                        color: AppTheme.accentSoft, borderRadius: Rd.md),
+                    child: const Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Icon(Icons.lightbulb_outline_rounded,
+                            color: AppTheme.accent, size: 14),
+                        SizedBox(width: Sp.sm),
+                        Expanded(
+                          child: Text(
+                            'Go to All tab → tap a Snapchat notification → "Add to list" to add automatically.',
+                            style: TextStyle(
+                                color: AppTheme.accent,
+                                fontSize: 12, height: 1.4),
                           ),
                         ),
                       ],
@@ -346,8 +359,6 @@ class _FilterScreenState extends State<FilterScreen>
     );
   }
 }
-
-// ── Mode Toggle Widget ────────────────────────────────────────────
 
 class _ModeToggle extends StatelessWidget {
   final FilterMode mode;
@@ -446,8 +457,6 @@ class _Tab extends StatelessWidget {
   }
 }
 
-// ── Contact Tile ──────────────────────────────────────────────────
-
 class _ContactTile extends StatelessWidget {
   final String name;
   final Color color;
@@ -476,8 +485,7 @@ class _ContactTile extends StatelessWidget {
       child: Row(
         children: [
           Container(
-            width: 34,
-            height: 34,
+            width: 34, height: 34,
             decoration: BoxDecoration(
               color: isBlock
                   ? Colors.redAccent.withOpacity(0.12)
@@ -511,12 +519,9 @@ class _ContactTile extends StatelessWidget {
           GestureDetector(
             onTap: onRemove,
             child: Container(
-              width: 28,
-              height: 28,
+              width: 28, height: 28,
               decoration: BoxDecoration(
-                color: AppTheme.surfaceElevated,
-                borderRadius: Rd.sm,
-              ),
+                  color: AppTheme.surfaceElevated, borderRadius: Rd.sm),
               child: const Icon(Icons.close_rounded,
                   color: AppTheme.textMuted, size: 14),
             ),

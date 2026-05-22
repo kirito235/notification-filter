@@ -11,21 +11,27 @@ class FilterStore extends ChangeNotifier {
   static FilterStore get instance => _instance;
   FilterStore._();
 
+  // FIX 4: WA Business and WA share ONE config under 'com.whatsapp' key
+  // We keep both package keys but they mirror the same data
   Map<String, AppFilterConfig> configs = {
-    'com.whatsapp.w4b': const AppFilterConfig(),
     'com.whatsapp': const AppFilterConfig(),
     'com.instagram.android': const AppFilterConfig(),
     'com.snapchat.android': const AppFilterConfig(),
   };
 
   Map<String, bool> appEnabled = {
-    'com.whatsapp.w4b': true,
     'com.whatsapp': true,
     'com.instagram.android': true,
     'com.snapchat.android': true,
   };
 
   bool globalEnabled = true;
+
+  // FIX 4: resolve WA Business to WA key
+  String _resolveKey(String pkg) {
+    if (pkg == 'com.whatsapp.w4b') return 'com.whatsapp';
+    return pkg;
+  }
 
   Future<void> load() async {
     final prefs = await SharedPreferences.getInstance();
@@ -64,6 +70,12 @@ class FilterStore extends ChangeNotifier {
         blockData[e.key] = e.value.blocklist.toList();
         modeData[e.key] =
             e.value.mode == FilterMode.blocklist ? 'blocklist' : 'allowlist';
+        // FIX 4: also sync WA Business with same data
+        if (e.key == 'com.whatsapp') {
+          allowData['com.whatsapp.w4b'] = e.value.allowlist.toList();
+          blockData['com.whatsapp.w4b'] = e.value.blocklist.toList();
+          modeData['com.whatsapp.w4b'] = modeData[e.key]!;
+        }
       }
 
       await _syncChannel.invokeMethod('sync', allowData);
@@ -76,6 +88,12 @@ class FilterStore extends ChangeNotifier {
           'pkg': e.key,
           'enabled': e.value,
         });
+        if (e.key == 'com.whatsapp') {
+          await _syncChannel.invokeMethod('setAppEnabled', {
+            'pkg': 'com.whatsapp.w4b',
+            'enabled': e.value,
+          });
+        }
       }
     } catch (e) {
       debugPrint('Sync error: $e');
@@ -83,40 +101,45 @@ class FilterStore extends ChangeNotifier {
   }
 
   Future<void> addToAllowlist(String pkg, String name) async {
-    configs[pkg] = configs[pkg]!.copyWith(
-        allowlist: {...configs[pkg]!.allowlist, name});
-    await _savePkg(pkg);
+    final key = _resolveKey(pkg);
+    configs[key] = configs[key]!.copyWith(
+        allowlist: {...configs[key]!.allowlist, name});
+    await _savePkg(key);
     await syncToNative();
     notifyListeners();
   }
 
   Future<void> removeFromAllowlist(String pkg, String name) async {
-    final updated = Set<String>.from(configs[pkg]!.allowlist)..remove(name);
-    configs[pkg] = configs[pkg]!.copyWith(allowlist: updated);
-    await _savePkg(pkg);
+    final key = _resolveKey(pkg);
+    final updated = Set<String>.from(configs[key]!.allowlist)..remove(name);
+    configs[key] = configs[key]!.copyWith(allowlist: updated);
+    await _savePkg(key);
     await syncToNative();
     notifyListeners();
   }
 
   Future<void> addToBlocklist(String pkg, String name) async {
-    configs[pkg] = configs[pkg]!.copyWith(
-        blocklist: {...configs[pkg]!.blocklist, name});
-    await _savePkg(pkg);
+    final key = _resolveKey(pkg);
+    configs[key] = configs[key]!.copyWith(
+        blocklist: {...configs[key]!.blocklist, name});
+    await _savePkg(key);
     await syncToNative();
     notifyListeners();
   }
 
   Future<void> removeFromBlocklist(String pkg, String name) async {
-    final updated = Set<String>.from(configs[pkg]!.blocklist)..remove(name);
-    configs[pkg] = configs[pkg]!.copyWith(blocklist: updated);
-    await _savePkg(pkg);
+    final key = _resolveKey(pkg);
+    final updated = Set<String>.from(configs[key]!.blocklist)..remove(name);
+    configs[key] = configs[key]!.copyWith(blocklist: updated);
+    await _savePkg(key);
     await syncToNative();
     notifyListeners();
   }
 
   Future<void> setMode(String pkg, FilterMode mode) async {
-    configs[pkg] = configs[pkg]!.copyWith(mode: mode);
-    await _savePkg(pkg);
+    final key = _resolveKey(pkg);
+    configs[key] = configs[key]!.copyWith(mode: mode);
+    await _savePkg(key);
     await syncToNative();
     notifyListeners();
   }
@@ -130,20 +153,22 @@ class FilterStore extends ChangeNotifier {
   }
 
   Future<void> setAppEnabled(String pkg, bool val) async {
-    appEnabled[pkg] = val;
+    final key = _resolveKey(pkg);
+    appEnabled[key] = val;
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('${pkg}_enabled', val);
+    await prefs.setBool('${key}_enabled', val);
     await syncToNative();
     notifyListeners();
   }
 
   bool isAllowed(String pkg, String title) {
     if (!globalEnabled) return true;
-    if (appEnabled[pkg] == false) return true;
-    final config = configs[pkg];
+    final key = _resolveKey(pkg);
+    if (appEnabled[key] == false) return true;
+    final config = configs[key];
     if (config == null) return false;
 
-    // Focus mode forces allowlist logic regardless of per-app mode
+    // Focus mode forces allowlist logic
     if (FocusService.instance.isRunning) {
       final allowlist = config.allowlist;
       if (allowlist.isEmpty) return false;
@@ -154,8 +179,16 @@ class FilterStore extends ChangeNotifier {
     return config.isAllowed(title);
   }
 
-  bool isSupported(String pkg) => configs.containsKey(pkg);
-  FilterMode modeFor(String pkg) => configs[pkg]?.mode ?? FilterMode.allowlist;
-  Set<String> allowlistFor(String pkg) => configs[pkg]?.allowlist ?? {};
-  Set<String> blocklistFor(String pkg) => configs[pkg]?.blocklist ?? {};
+  bool isSupported(String pkg) {
+    return configs.containsKey(_resolveKey(pkg));
+  }
+
+  FilterMode modeFor(String pkg) =>
+      configs[_resolveKey(pkg)]?.mode ?? FilterMode.allowlist;
+
+  Set<String> allowlistFor(String pkg) =>
+      configs[_resolveKey(pkg)]?.allowlist ?? {};
+
+  Set<String> blocklistFor(String pkg) =>
+      configs[_resolveKey(pkg)]?.blocklist ?? {};
 }

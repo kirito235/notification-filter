@@ -36,22 +36,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
       body: ListView(
         padding: const EdgeInsets.only(bottom: Sp.xxl),
         children: [
-          // Focus status card (if active)
+          // Focus status card
           ListenableBuilder(
             listenable: focusSvc,
             builder: (_, __) {
               if (!focusSvc.isActive) return const SizedBox.shrink();
               return Padding(
-                padding: const EdgeInsets.fromLTRB(
-                    Sp.md, Sp.md, Sp.md, 0),
+                padding: const EdgeInsets.fromLTRB(Sp.md, Sp.md, Sp.md, 0),
                 child: Container(
                   padding: const EdgeInsets.all(Sp.md),
                   decoration: BoxDecoration(
                     color: AppTheme.accentSoft,
                     borderRadius: Rd.lg,
                     border: Border.all(
-                        color: AppTheme.accent.withOpacity(0.4),
-                        width: 0.5),
+                        color: AppTheme.accent.withOpacity(0.4), width: 0.5),
                   ),
                   child: Row(
                     children: [
@@ -70,8 +68,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             Text(
                               '${focusSvc.session.remainingFormatted} remaining · allowlist mode enforced',
                               style: const TextStyle(
-                                  color: AppTheme.textSecondary,
-                                  fontSize: 12),
+                                  color: AppTheme.textSecondary, fontSize: 12),
                             ),
                           ],
                         ),
@@ -106,7 +103,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ],
           ),
 
-          // Per-app
+          // FIX 4: Per-app using AppInfo.names (3 entries, not 4)
           SettingsGroup(
             header: 'Per-App Filtering',
             tiles: AppInfo.names.entries.map((e) {
