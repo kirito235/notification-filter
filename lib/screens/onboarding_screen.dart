@@ -19,28 +19,32 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       color: Color(0xFFE1306C),
       softColor: Color(0xFF2B0D1A),
       title: 'Tired of notification spam?',
-      subtitle: 'Group chats, promos, and random pings interrupt your focus every few minutes.',
+      subtitle:
+          'Group chats, promos, and random pings interrupt your focus every few minutes.',
     ),
     _OnboardPage(
       icon: Icons.shield_rounded,
       color: AppTheme.accent,
       softColor: AppTheme.accentSoft,
       title: 'FilterNotif filters for you',
-      subtitle: 'Only hear from people you care about. Everyone else is silently blocked.',
+      subtitle:
+          'Only hear from people you care about. Everyone else is silently blocked.',
     ),
     _OnboardPage(
       icon: Icons.touch_app_rounded,
       color: Color(0xFF25D366),
       softColor: Color(0xFF0D2B1A),
-      title: 'One tap to whitelist',
-      subtitle: 'See a notification in your log, tap to whitelist that person. Done.',
+      title: 'One tap to add to list',
+      subtitle:
+          'See a notification in your log, tap to add that person to your list. Done.',
     ),
     _OnboardPage(
       icon: Icons.lock_rounded,
       color: Color(0xFFFFB340),
       softColor: Color(0xFF2B2200),
       title: '100% private, always',
-      subtitle: 'Everything lives on your device. No servers, no tracking, no accounts.',
+      subtitle:
+          'Everything lives on your device. No servers, no tracking, no accounts.',
     ),
   ];
 
@@ -73,9 +77,10 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 padding: const EdgeInsets.all(Sp.md),
                 child: TextButton(
                   onPressed: _finish,
-                  child: const Text('Skip',
-                      style: TextStyle(
-                          color: AppTheme.textMuted, fontSize: 14)),
+                  child: const Text(
+                    'Skip',
+                    style: TextStyle(color: AppTheme.textMuted, fontSize: 14),
+                  ),
                 ),
               ),
             ),
@@ -120,8 +125,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                       onPressed: () {
                         if (_page < _pages.length - 1) {
                           _pageCtrl.nextPage(
-                              duration: const Duration(milliseconds: 350),
-                              curve: Curves.easeOutCubic);
+                            duration: const Duration(milliseconds: 350),
+                            curve: Curves.easeOutCubic,
+                          );
                         } else {
                           _finish();
                         }
@@ -130,14 +136,15 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                         backgroundColor: AppTheme.accent,
                         foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(
-                            borderRadius: Rd.lg),
+                        shape: RoundedRectangleBorder(borderRadius: Rd.lg),
                         elevation: 0,
                       ),
                       child: Text(
                         _page < _pages.length - 1 ? 'Continue' : 'Get Started',
                         style: const TextStyle(
-                            fontWeight: FontWeight.w600, fontSize: 15),
+                          fontWeight: FontWeight.w600,
+                          fontSize: 15,
+                        ),
                       ),
                     ),
                   ),
@@ -179,8 +186,7 @@ class _OnboardPage extends StatelessWidget {
             decoration: BoxDecoration(
               color: softColor,
               borderRadius: Rd.xl,
-              border: Border.all(
-                  color: color.withOpacity(0.3), width: 1),
+              border: Border.all(color: color.withOpacity(0.3), width: 1),
             ),
             child: Icon(icon, color: color, size: 48),
           ),

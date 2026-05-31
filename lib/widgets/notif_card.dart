@@ -14,7 +14,7 @@ class NotifCard extends StatefulWidget {
     required this.item,
     required this.index,
     this.onWhitelist,
-    this.whitelistLabel = 'Add to whitelist',
+    this.whitelistLabel = 'Add to list',
   });
 
   @override

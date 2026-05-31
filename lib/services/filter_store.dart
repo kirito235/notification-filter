@@ -40,7 +40,9 @@ class FilterStore extends ChangeNotifier {
       final allowlist = prefs.getStringList('${pkg}_allowlist')?.toSet() ?? {};
       final blocklist = prefs.getStringList('${pkg}_blocklist')?.toSet() ?? {};
       configs[pkg] = AppFilterConfig(
-        mode: modeStr == 'blocklist' ? FilterMode.blocklist : FilterMode.allowlist,
+        mode: modeStr == 'blocklist'
+            ? FilterMode.blocklist
+            : FilterMode.allowlist,
         allowlist: allowlist,
         blocklist: blocklist,
       );
@@ -53,24 +55,29 @@ class FilterStore extends ChangeNotifier {
   Future<void> _savePkg(String pkg) async {
     final prefs = await SharedPreferences.getInstance();
     final config = configs[pkg]!;
-    await prefs.setString('${pkg}_mode',
-        config.mode == FilterMode.blocklist ? 'blocklist' : 'allowlist');
+    await prefs.setString(
+      '${pkg}_mode',
+      config.mode == FilterMode.blocklist ? 'blocklist' : 'allowlist',
+    );
     await prefs.setStringList('${pkg}_allowlist', config.allowlist.toList());
     await prefs.setStringList('${pkg}_blocklist', config.blocklist.toList());
   }
 
   Future<void> syncToNative() async {
     try {
+      // Prefer a single atomic sync call when supported by native side.
       final Map<String, List<String>> allowData = {};
       final Map<String, List<String>> blockData = {};
       final Map<String, String> modeData = {};
+      final Map<String, bool> appEnabledData = {};
 
       for (final e in configs.entries) {
         allowData[e.key] = e.value.allowlist.toList();
         blockData[e.key] = e.value.blocklist.toList();
-        modeData[e.key] =
-            e.value.mode == FilterMode.blocklist ? 'blocklist' : 'allowlist';
-        // FIX 4: also sync WA Business with same data
+        modeData[e.key] = e.value.mode == FilterMode.blocklist
+            ? 'blocklist'
+            : 'allowlist';
+        // Mirror WhatsApp Business alongside WhatsApp
         if (e.key == 'com.whatsapp') {
           allowData['com.whatsapp.w4b'] = e.value.allowlist.toList();
           blockData['com.whatsapp.w4b'] = e.value.blocklist.toList();
@@ -78,6 +85,29 @@ class FilterStore extends ChangeNotifier {
         }
       }
 
+      for (final e in appEnabled.entries) {
+        appEnabledData[e.key] = e.value;
+        if (e.key == 'com.whatsapp') {
+          appEnabledData['com.whatsapp.w4b'] = e.value;
+        }
+      }
+
+      final payload = {
+        'allow': allowData,
+        'block': blockData,
+        'modes': modeData,
+        'globalEnabled': globalEnabled,
+        'apps': appEnabledData,
+      };
+
+      try {
+        await _syncChannel.invokeMethod('syncAll', payload);
+        return;
+      } catch (_) {
+        // Native side may not support the batched method; fall back to legacy calls.
+      }
+
+      // Legacy fallback: keep existing per-channel calls for compatibility.
       await _syncChannel.invokeMethod('sync', allowData);
       await _syncChannel.invokeMethod('syncBlocklist', blockData);
       await _syncChannel.invokeMethod('syncModes', modeData);
@@ -103,7 +133,8 @@ class FilterStore extends ChangeNotifier {
   Future<void> addToAllowlist(String pkg, String name) async {
     final key = _resolveKey(pkg);
     configs[key] = configs[key]!.copyWith(
-        allowlist: {...configs[key]!.allowlist, name});
+      allowlist: {...configs[key]!.allowlist, name},
+    );
     await _savePkg(key);
     await syncToNative();
     notifyListeners();
@@ -121,7 +152,8 @@ class FilterStore extends ChangeNotifier {
   Future<void> addToBlocklist(String pkg, String name) async {
     final key = _resolveKey(pkg);
     configs[key] = configs[key]!.copyWith(
-        blocklist: {...configs[key]!.blocklist, name});
+      blocklist: {...configs[key]!.blocklist, name},
+    );
     await _savePkg(key);
     await syncToNative();
     notifyListeners();
@@ -172,8 +204,9 @@ class FilterStore extends ChangeNotifier {
     if (FocusService.instance.isRunning) {
       final allowlist = config.allowlist;
       if (allowlist.isEmpty) return false;
-      return allowlist
-          .any((name) => title.toLowerCase().contains(name.toLowerCase()));
+      return allowlist.any(
+        (name) => title.toLowerCase().contains(name.toLowerCase()),
+      );
     }
 
     return config.isAllowed(title);

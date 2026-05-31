@@ -32,20 +32,33 @@ class _RootScreenState extends State<RootScreen> {
     RegExp(r'\d+ new messages'),
     RegExp(r'^\d+ new Snaps?$'),
     RegExp(r'^You have \d+ new'),
-    RegExp(r'^Updating messages'),   // FIX 2
+    RegExp(r'you may have new notifications', caseSensitive: false),
+    RegExp(r'^Updating messages'), // FIX 2
   ];
 
   static const _summaryTitles = {
-    'WA Business', 'WhatsApp', 'Instagram', 'Snapchat',
-    'Updating messages', 'Updating messages…',
+    'WA Business',
+    'WhatsApp',
+    'Instagram',
+    'Snapchat',
+    'Updating messages',
+    'Updating messages…',
   };
 
   // FIX 5: WhatsApp system notification titles
   static const _waSystemTitles = {
-    'Checking for messages…', 'Checking for messages',
-    'Ongoing call', 'Incoming call', 'Ringing…', 'Ringing',
-    'Connected', 'Video call', 'Voice call',
-    'WhatsApp Web', 'End-to-end encrypted', 'Tap to return to call',
+    'Checking for messages…',
+    'Checking for messages',
+    'Ongoing call',
+    'Incoming call',
+    'Ringing…',
+    'Ringing',
+    'Connected',
+    'Video call',
+    'Voice call',
+    'WhatsApp Web',
+    'End-to-end encrypted',
+    'Tap to return to call',
   };
 
   // FIX 4: Merge WA + WA Business — treat both as same app
@@ -90,7 +103,7 @@ class _RootScreenState extends State<RootScreen> {
       // FIX 3: normalize Instagram title
       title = _normalizeTitle(pkg, title);
 
-      if (_isDuplicate(pkg, title)) return;
+      if (_isDuplicate(pkg, title, text)) return;
 
       final allowed = store.isAllowed(pkg, title);
       final item = NotifItem(
@@ -102,8 +115,10 @@ class _RootScreenState extends State<RootScreen> {
       );
 
       if (FocusService.instance.isRunning) {
-        if (allowed) FocusService.instance.recordAllowed();
-        else FocusService.instance.recordSuppressed();
+        if (allowed)
+          FocusService.instance.recordAllowed();
+        else
+          FocusService.instance.recordSuppressed();
       }
 
       setState(() {
@@ -123,9 +138,10 @@ class _RootScreenState extends State<RootScreen> {
 
   // FIX 5: WhatsApp system text patterns
   bool _isWaSystemText(String text) {
-    if (text.contains('Checking for messages', caseSensitive: false)) return true;
-    if (text.contains('end-to-end encrypted', caseSensitive: false)) return true;
-    if (text.contains('Tap to return to call', caseSensitive: false)) return true;
+    final lower = text.toLowerCase();
+    if (lower.contains('checking for messages')) return true;
+    if (lower.contains('end-to-end encrypted')) return true;
+    if (lower.contains('tap to return to call')) return true;
     return false;
   }
 
@@ -134,15 +150,21 @@ class _RootScreenState extends State<RootScreen> {
     if (_summaryPatterns.any((p) => p.hasMatch(text))) return true;
     if (_summaryPatterns.any((p) => p.hasMatch(title))) return true;
     // FIX 2: Snapchat "Updating messages" as title
-    if (pkg == 'com.snapchat.android' && title.startsWith('Updating')) return true;
+    if (pkg == 'com.snapchat.android' && title.startsWith('Updating'))
+      return true;
     return false;
   }
 
-  bool _isDuplicate(String pkg, String title) {
+  bool _isDuplicate(String pkg, String title, String text) {
     if (allNotifs.isEmpty) return false;
-    final last = allNotifs.first;
-    final diff = DateTime.now().difference(last.time).inSeconds;
-    return last.packageName == pkg && last.title == title && diff < 2;
+    final now = DateTime.now();
+    return allNotifs.take(5).any((item) {
+      final diff = now.difference(item.time).inSeconds;
+      return diff < 5 &&
+          item.packageName == pkg &&
+          item.title == title &&
+          item.text == text;
+    });
   }
 
   void _onFilterChanged() {
@@ -162,8 +184,12 @@ class _RootScreenState extends State<RootScreen> {
     if (!_loaded) {
       return const Scaffold(
         backgroundColor: AppTheme.background,
-        body: Center(child: CircularProgressIndicator(
-            color: AppTheme.accent, strokeWidth: 2)),
+        body: Center(
+          child: CircularProgressIndicator(
+            color: AppTheme.accent,
+            strokeWidth: 2,
+          ),
+        ),
       );
     }
 
@@ -201,39 +227,62 @@ class _RootScreenState extends State<RootScreen> {
             },
             destinations: [
               NavigationDestination(
-                icon: _NavBadge(count: filteredNotifs.length,
-                    child: const Icon(Icons.shield_outlined, size: 22)),
-                selectedIcon: _NavBadge(count: filteredNotifs.length,
-                    child: const Icon(Icons.shield_rounded,
-                        size: 22, color: AppTheme.accent)),
+                icon: _NavBadge(
+                  count: filteredNotifs.length,
+                  child: const Icon(Icons.shield_outlined, size: 22),
+                ),
+                selectedIcon: _NavBadge(
+                  count: filteredNotifs.length,
+                  child: const Icon(
+                    Icons.shield_rounded,
+                    size: 22,
+                    color: AppTheme.accent,
+                  ),
+                ),
                 label: 'Filtered',
               ),
               NavigationDestination(
-                icon: _NavBadge(count: allNotifs.length,
-                    child: const Icon(Icons.notifications_outlined, size: 22)),
-                selectedIcon: _NavBadge(count: allNotifs.length,
-                    child: const Icon(Icons.notifications_rounded,
-                        size: 22, color: AppTheme.accent)),
+                icon: _NavBadge(
+                  count: allNotifs.length,
+                  child: const Icon(Icons.notifications_outlined, size: 22),
+                ),
+                selectedIcon: _NavBadge(
+                  count: allNotifs.length,
+                  child: const Icon(
+                    Icons.notifications_rounded,
+                    size: 22,
+                    color: AppTheme.accent,
+                  ),
+                ),
                 label: 'All',
               ),
               const NavigationDestination(
                 icon: Icon(Icons.tune_outlined, size: 22),
-                selectedIcon: Icon(Icons.tune_rounded,
-                    size: 22, color: AppTheme.accent),
+                selectedIcon: Icon(
+                  Icons.tune_rounded,
+                  size: 22,
+                  color: AppTheme.accent,
+                ),
                 label: 'Filter',
               ),
               NavigationDestination(
                 icon: focusSvc.isRunning
                     ? const _PulsingIcon()
                     : const Icon(Icons.timer_outlined, size: 22),
-                selectedIcon: const Icon(Icons.timer_rounded,
-                    size: 22, color: AppTheme.accent),
+                selectedIcon: const Icon(
+                  Icons.timer_rounded,
+                  size: 22,
+                  color: AppTheme.accent,
+                ),
                 label: 'Focus',
               ),
               const NavigationDestination(
                 icon: Icon(Icons.settings_outlined, size: 22),
-                selectedIcon: Icon(Icons.settings_rounded,
-                    size: 22, color: AppTheme.accent),
+                selectedIcon: Icon(
+                  Icons.settings_rounded,
+                  size: 22,
+                  color: AppTheme.accent,
+                ),
                 label: 'Settings',
               ),
             ],
@@ -253,8 +302,10 @@ class _NavBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     if (count == 0) return child;
     return Badge(
-      label: Text(count > 99 ? '99+' : '$count',
-          style: const TextStyle(fontSize: 10)),
+      label: Text(
+        count > 99 ? '99+' : '$count',
+        style: const TextStyle(fontSize: 10),
+      ),
       backgroundColor: AppTheme.accent,
       child: child,
     );
@@ -276,8 +327,9 @@ class _PulsingIconState extends State<_PulsingIcon>
   void initState() {
     super.initState();
     _ctrl = AnimationController(
-        vsync: this, duration: const Duration(seconds: 1))
-      ..repeat(reverse: true);
+      vsync: this,
+      duration: const Duration(seconds: 1),
+    )..repeat(reverse: true);
     _anim = CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut);
   }
 
@@ -296,9 +348,11 @@ class _PulsingIconState extends State<_PulsingIcon>
         children: [
           const Icon(Icons.timer_outlined, size: 22),
           Positioned(
-            top: 0, right: 0,
+            top: 0,
+            right: 0,
             child: Container(
-              width: 8, height: 8,
+              width: 8,
+              height: 8,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 color: Color.lerp(

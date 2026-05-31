@@ -24,10 +24,14 @@ class PermissionScreen extends StatelessWidget {
                   color: const Color(0xFF2B1F00),
                   borderRadius: Rd.xl,
                   border: Border.all(
-                      color: const Color(0xFFFFB340).withOpacity(0.3)),
+                    color: const Color(0xFFFFB340).withOpacity(0.3),
+                  ),
                 ),
-                child: const Icon(Icons.notifications_active_rounded,
-                    color: Color(0xFFFFB340), size: 44),
+                child: const Icon(
+                  Icons.notifications_active_rounded,
+                  color: Color(0xFFFFB340),
+                  size: 44,
+                ),
               ),
               const SizedBox(height: Sp.xl),
               const Text(
@@ -42,7 +46,7 @@ class PermissionScreen extends StatelessWidget {
               ),
               const SizedBox(height: Sp.md),
               const Text(
-                'FilterNotif needs Notification Access to read and silently remove notifications from people not on your whitelist.',
+                'FilterNotif needs Notification Access to read and silently remove notifications from people not on your allowlist.',
                 style: TextStyle(
                   color: AppTheme.textSecondary,
                   fontSize: 15,
@@ -60,14 +64,19 @@ class PermissionScreen extends StatelessWidget {
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.lock_rounded,
-                        color: AppTheme.textMuted, size: 16),
+                    const Icon(
+                      Icons.lock_rounded,
+                      color: AppTheme.textMuted,
+                      size: 16,
+                    ),
                     const SizedBox(width: Sp.sm),
                     const Expanded(
                       child: Text(
                         'Your data never leaves your device.',
                         style: TextStyle(
-                            color: AppTheme.textSecondary, fontSize: 13),
+                          color: AppTheme.textSecondary,
+                          fontSize: 13,
+                        ),
                       ),
                     ),
                   ],
@@ -77,12 +86,18 @@ class PermissionScreen extends StatelessWidget {
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton.icon(
-                  icon: const Icon(Icons.settings_rounded,
-                      color: Colors.white, size: 18),
-                  label: const Text('Open Notification Settings',
-                      style: TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w600)),
+                  icon: const Icon(
+                    Icons.settings_rounded,
+                    color: Colors.white,
+                    size: 18,
+                  ),
+                  label: const Text(
+                    'Open Notification Settings',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppTheme.accent,
                     padding: const EdgeInsets.symmetric(vertical: 16),
@@ -106,8 +121,7 @@ class PermissionScreen extends StatelessWidget {
                   ),
                   child: const Text(
                     'I already gave permission',
-                    style: TextStyle(
-                        color: AppTheme.textMuted, fontSize: 14),
+                    style: TextStyle(color: AppTheme.textMuted, fontSize: 14),
                   ),
                 ),
               ),

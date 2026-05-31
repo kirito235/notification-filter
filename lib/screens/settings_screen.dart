@@ -49,26 +49,36 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     color: AppTheme.accentSoft,
                     borderRadius: Rd.lg,
                     border: Border.all(
-                        color: AppTheme.accent.withOpacity(0.4), width: 0.5),
+                      color: AppTheme.accent.withOpacity(0.4),
+                      width: 0.5,
+                    ),
                   ),
                   child: Row(
                     children: [
-                      const Icon(Icons.timer_rounded,
-                          color: AppTheme.accent, size: 18),
+                      const Icon(
+                        Icons.timer_rounded,
+                        color: AppTheme.accent,
+                        size: 18,
+                      ),
                       const SizedBox(width: Sp.sm),
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text('Focus session active',
-                                style: TextStyle(
-                                    color: AppTheme.accent,
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w600)),
+                            const Text(
+                              'Focus session active',
+                              style: TextStyle(
+                                color: AppTheme.accent,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
                             Text(
                               '${focusSvc.session.remainingFormatted} remaining · allowlist mode enforced',
                               style: const TextStyle(
-                                  color: AppTheme.textSecondary, fontSize: 12),
+                                color: AppTheme.textSecondary,
+                                fontSize: 12,
+                              ),
                             ),
                           ],
                         ),
@@ -113,20 +123,25 @@ class _SettingsScreenState extends State<SettingsScreen> {
               final count = mode == FilterMode.allowlist
                   ? config?.allowlist.length ?? 0
                   : config?.blocklist.length ?? 0;
-              final modeLabel =
-                  mode == FilterMode.allowlist ? 'Allowlist' : 'Blocklist';
+              final modeLabel = mode == FilterMode.allowlist
+                  ? 'Allowlist'
+                  : 'Blocklist';
 
               return SettingsTile(
                 icon: AppInfo.icon(e.key),
                 iconColor: color,
                 title: e.value,
-                subtitle: '$count contacts · $modeLabel mode',
+                subtitle: store.globalEnabled
+                    ? '$count contacts · $modeLabel mode'
+                    : 'Filtering paused',
                 trailing: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Container(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 6, vertical: 2),
+                        horizontal: 6,
+                        vertical: 2,
+                      ),
                       decoration: BoxDecoration(
                         color: mode == FilterMode.allowlist
                             ? const Color(0xFF25D366).withOpacity(0.12)
@@ -146,14 +161,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ),
                     const SizedBox(width: Sp.sm),
                     Switch(
-                      value: store.appEnabled[e.key] ?? true,
+                      value: store.globalEnabled
+                          ? (store.appEnabled[e.key] ?? true)
+                          : false,
                       activeColor: color,
-                      onChanged: (val) async {
-                        HapticFeedback.selectionClick();
-                        await store.setAppEnabled(e.key, val);
-                        widget.onChanged();
-                        setState(() {});
-                      },
+                      onChanged: store.globalEnabled
+                          ? (val) async {
+                              HapticFeedback.selectionClick();
+                              await store.setAppEnabled(e.key, val);
+                              widget.onChanged();
+                              setState(() {});
+                            }
+                          : null,
                     ),
                   ],
                 ),
@@ -170,8 +189,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 iconColor: Colors.orange,
                 title: 'Notification access',
                 subtitle: 'Required for filtering to work',
-                trailing: const Icon(Icons.arrow_forward_ios_rounded,
-                    color: AppTheme.textMuted, size: 14),
+                trailing: const Icon(
+                  Icons.arrow_forward_ios_rounded,
+                  color: AppTheme.textMuted,
+                  size: 14,
+                ),
                 onTap: () async {
                   try {
                     await _platform.invokeMethod('openNotificationSettings');
@@ -183,8 +205,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 iconColor: const Color(0xFF4ADE80),
                 title: 'Battery optimization',
                 subtitle: 'Disable to keep filtering active in background',
-                trailing: const Icon(Icons.arrow_forward_ios_rounded,
-                    color: AppTheme.textMuted, size: 14),
+                trailing: const Icon(
+                  Icons.arrow_forward_ios_rounded,
+                  color: AppTheme.textMuted,
+                  size: 14,
+                ),
                 onTap: () async {
                   try {
                     await _platform.invokeMethod('openBatterySettings');
@@ -210,8 +235,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 iconColor: AppTheme.textMuted,
                 title: 'Privacy policy',
                 subtitle: 'All data stays on your device. No tracking.',
-                trailing: const Icon(Icons.arrow_forward_ios_rounded,
-                    color: AppTheme.textMuted, size: 14),
+                trailing: const Icon(
+                  Icons.arrow_forward_ios_rounded,
+                  color: AppTheme.textMuted,
+                  size: 14,
+                ),
                 onTap: () {},
               ),
             ],

@@ -55,29 +55,36 @@ class _FocusScreenState extends State<FocusScreen>
   }
 
   Future<bool?> _showStopDialog() => showDialog<bool>(
-        context: context,
-        builder: (_) => AlertDialog(
-          backgroundColor: AppTheme.surface,
-          shape: RoundedRectangleBorder(borderRadius: Rd.xl),
-          title: const Text('End focus session?',
-              style: TextStyle(color: AppTheme.textPrimary, fontSize: 17)),
-          content: const Text(
-              'Your progress will be lost and notifications will return to normal.',
-              style: TextStyle(color: AppTheme.textSecondary, fontSize: 14)),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text('Keep going',
-                  style: TextStyle(color: AppTheme.accent)),
-            ),
-            TextButton(
-              onPressed: () => Navigator.pop(context, true),
-              child: const Text('End session',
-                  style: TextStyle(color: Colors.redAccent)),
-            ),
-          ],
+    context: context,
+    builder: (_) => AlertDialog(
+      backgroundColor: AppTheme.surface,
+      shape: RoundedRectangleBorder(borderRadius: Rd.xl),
+      title: const Text(
+        'End focus session?',
+        style: TextStyle(color: AppTheme.textPrimary, fontSize: 17),
+      ),
+      content: const Text(
+        'Your progress will be lost and notifications will return to normal.',
+        style: TextStyle(color: AppTheme.textSecondary, fontSize: 14),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context, false),
+          child: const Text(
+            'Keep going',
+            style: TextStyle(color: AppTheme.accent),
+          ),
         ),
-      );
+        TextButton(
+          onPressed: () => Navigator.pop(context, true),
+          child: const Text(
+            'End session',
+            style: TextStyle(color: Colors.redAccent),
+          ),
+        ),
+      ],
+    ),
+  );
 
   void _showCompletionSheet() {
     final svc = FocusService.instance;
@@ -87,27 +94,40 @@ class _FocusScreenState extends State<FocusScreen>
       isDismissible: false,
       enableDrag: false,
       shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
       builder: (_) => Padding(
         padding: const EdgeInsets.fromLTRB(Sp.xl, Sp.xl, Sp.xl, Sp.xxl),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Container(
-              width: 72, height: 72,
+              width: 72,
+              height: 72,
               decoration: BoxDecoration(
-                color: AppTheme.accentSoft, borderRadius: Rd.xl),
-              child: const Icon(Icons.check_rounded,
-                  color: AppTheme.accent, size: 36),
+                color: AppTheme.accentSoft,
+                borderRadius: Rd.xl,
+              ),
+              child: const Icon(
+                Icons.check_rounded,
+                color: AppTheme.accent,
+                size: 36,
+              ),
             ),
             const SizedBox(height: Sp.lg),
-            const Text('Focus complete!',
-                style: TextStyle(
-                    color: AppTheme.textPrimary,
-                    fontSize: 22, fontWeight: FontWeight.w700)),
+            const Text(
+              'Focus complete!',
+              style: TextStyle(
+                color: AppTheme.textPrimary,
+                fontSize: 22,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
             const SizedBox(height: Sp.sm),
-            Text('Great work. You stayed focused.',
-                style: TextStyle(color: AppTheme.textSecondary, fontSize: 14)),
+            Text(
+              'Great work. You stayed focused.',
+              style: TextStyle(color: AppTheme.textSecondary, fontSize: 14),
+            ),
             const SizedBox(height: Sp.xl),
             // Stats row
             Row(
@@ -141,9 +161,13 @@ class _FocusScreenState extends State<FocusScreen>
                   shape: RoundedRectangleBorder(borderRadius: Rd.lg),
                   elevation: 0,
                 ),
-                child: const Text('Done',
-                    style: TextStyle(
-                        color: Colors.white, fontWeight: FontWeight.w600)),
+                child: const Text(
+                  'Done',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
               ),
             ),
           ],
@@ -194,12 +218,15 @@ class _FocusScreenState extends State<FocusScreen>
             if (!isActive) ...[
               const Align(
                 alignment: Alignment.centerLeft,
-                child: Text('Duration',
-                    style: TextStyle(
-                        color: AppTheme.textMuted,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        letterSpacing: 1.2)),
+                child: Text(
+                  'Duration',
+                  style: TextStyle(
+                    color: AppTheme.textMuted,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 1.2,
+                  ),
+                ),
               ),
               const SizedBox(height: Sp.sm),
               Wrap(
@@ -218,7 +245,9 @@ class _FocusScreenState extends State<FocusScreen>
                     child: AnimatedContainer(
                       duration: const Duration(milliseconds: 200),
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 10),
+                        horizontal: 16,
+                        vertical: 10,
+                      ),
                       decoration: BoxDecoration(
                         color: isSelected
                             ? AppTheme.accentSoft
@@ -258,20 +287,26 @@ class _FocusScreenState extends State<FocusScreen>
                   color: AppTheme.accentSoft,
                   borderRadius: Rd.lg,
                   border: Border.all(
-                      color: AppTheme.accent.withOpacity(0.3), width: 0.5),
+                    color: AppTheme.accent.withOpacity(0.3),
+                    width: 0.5,
+                  ),
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.shield_rounded,
-                        color: AppTheme.accent, size: 16),
+                    const Icon(
+                      Icons.shield_rounded,
+                      color: AppTheme.accent,
+                      size: 16,
+                    ),
                     const SizedBox(width: Sp.sm),
                     const Expanded(
                       child: Text(
-                        'Allowlist mode active — only whitelisted contacts can reach you.',
+                        'Allowlist mode active — only contacts on the allowlist can reach you.',
                         style: TextStyle(
-                            color: AppTheme.accent,
-                            fontSize: 12,
-                            height: 1.4),
+                          color: AppTheme.accent,
+                          fontSize: 12,
+                          height: 1.4,
+                        ),
                       ),
                     ),
                   ],
@@ -285,11 +320,17 @@ class _FocusScreenState extends State<FocusScreen>
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton.icon(
-                  icon: const Icon(Icons.play_arrow_rounded,
-                      color: Colors.white),
-                  label: const Text('Start Focus',
-                      style: TextStyle(
-                          color: Colors.white, fontWeight: FontWeight.w600)),
+                  icon: const Icon(
+                    Icons.play_arrow_rounded,
+                    color: Colors.white,
+                  ),
+                  label: const Text(
+                    'Start Focus',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppTheme.accent,
                     padding: const EdgeInsets.symmetric(vertical: 16),
@@ -305,14 +346,20 @@ class _FocusScreenState extends State<FocusScreen>
                 children: [
                   Expanded(
                     child: OutlinedButton.icon(
-                      icon: const Icon(Icons.pause_rounded,
-                          color: AppTheme.accent),
-                      label: const Text('Pause',
-                          style: TextStyle(color: AppTheme.accent)),
+                      icon: const Icon(
+                        Icons.pause_rounded,
+                        color: AppTheme.accent,
+                      ),
+                      label: const Text(
+                        'Pause',
+                        style: TextStyle(color: AppTheme.accent),
+                      ),
                       style: OutlinedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 14),
                         side: const BorderSide(
-                            color: AppTheme.accent, width: 0.5),
+                          color: AppTheme.accent,
+                          width: 0.5,
+                        ),
                         shape: RoundedRectangleBorder(borderRadius: Rd.lg),
                       ),
                       onPressed: () {
@@ -324,14 +371,20 @@ class _FocusScreenState extends State<FocusScreen>
                   const SizedBox(width: Sp.md),
                   Expanded(
                     child: OutlinedButton.icon(
-                      icon: const Icon(Icons.stop_rounded,
-                          color: Colors.redAccent),
-                      label: const Text('Stop',
-                          style: TextStyle(color: Colors.redAccent)),
+                      icon: const Icon(
+                        Icons.stop_rounded,
+                        color: Colors.redAccent,
+                      ),
+                      label: const Text(
+                        'Stop',
+                        style: TextStyle(color: Colors.redAccent),
+                      ),
                       style: OutlinedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 14),
                         side: const BorderSide(
-                            color: Colors.redAccent, width: 0.5),
+                          color: Colors.redAccent,
+                          width: 0.5,
+                        ),
                         shape: RoundedRectangleBorder(borderRadius: Rd.lg),
                       ),
                       onPressed: _stop,
@@ -345,10 +398,14 @@ class _FocusScreenState extends State<FocusScreen>
                 children: [
                   Expanded(
                     child: ElevatedButton.icon(
-                      icon: const Icon(Icons.play_arrow_rounded,
-                          color: Colors.white),
-                      label: const Text('Resume',
-                          style: TextStyle(color: Colors.white)),
+                      icon: const Icon(
+                        Icons.play_arrow_rounded,
+                        color: Colors.white,
+                      ),
+                      label: const Text(
+                        'Resume',
+                        style: TextStyle(color: Colors.white),
+                      ),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppTheme.accent,
                         padding: const EdgeInsets.symmetric(vertical: 14),
@@ -364,14 +421,20 @@ class _FocusScreenState extends State<FocusScreen>
                   const SizedBox(width: Sp.md),
                   Expanded(
                     child: OutlinedButton.icon(
-                      icon: const Icon(Icons.stop_rounded,
-                          color: Colors.redAccent),
-                      label: const Text('Stop',
-                          style: TextStyle(color: Colors.redAccent)),
+                      icon: const Icon(
+                        Icons.stop_rounded,
+                        color: Colors.redAccent,
+                      ),
+                      label: const Text(
+                        'Stop',
+                        style: TextStyle(color: Colors.redAccent),
+                      ),
                       style: OutlinedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 14),
                         side: const BorderSide(
-                            color: Colors.redAccent, width: 0.5),
+                          color: Colors.redAccent,
+                          width: 0.5,
+                        ),
                         shape: RoundedRectangleBorder(borderRadius: Rd.lg),
                       ),
                       onPressed: _stop,
@@ -389,34 +452,40 @@ class _FocusScreenState extends State<FocusScreen>
                 decoration: BoxDecoration(
                   color: AppTheme.surfaceElevated,
                   borderRadius: Rd.lg,
-                  border:
-                      Border.all(color: AppTheme.surfaceBorder, width: 0.5),
+                  border: Border.all(color: AppTheme.surfaceBorder, width: 0.5),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('How focus sessions work',
-                        style: TextStyle(
-                            color: AppTheme.textPrimary,
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600)),
+                    const Text(
+                      'How focus sessions work',
+                      style: TextStyle(
+                        color: AppTheme.textPrimary,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
                     const SizedBox(height: Sp.sm),
                     _InfoRow(
-                        icon: Icons.shield_rounded,
-                        text:
-                            'Forces allowlist mode on all apps during the session'),
+                      icon: Icons.shield_rounded,
+                      text:
+                          'Forces allowlist mode on all apps during the session',
+                    ),
                     _InfoRow(
-                        icon: Icons.notifications_off_rounded,
-                        text:
-                            'Non-whitelisted contacts are silently suppressed'),
+                      icon: Icons.notifications_off_rounded,
+                      text:
+                          'Contacts not on the allowlist are silently suppressed',
+                    ),
                     _InfoRow(
-                        icon: Icons.bar_chart_rounded,
-                        text:
-                            'Shows a summary of suppressed notifications when done'),
+                      icon: Icons.bar_chart_rounded,
+                      text:
+                          'Shows a summary of suppressed notifications when done',
+                    ),
                     _InfoRow(
-                        icon: Icons.settings_backup_restore_rounded,
-                        text:
-                            'Your normal filter settings are restored automatically'),
+                      icon: Icons.settings_backup_restore_rounded,
+                      text:
+                          'Your normal filter settings are restored automatically',
+                    ),
                   ],
                 ),
               ),
@@ -465,7 +534,7 @@ class _CircularTimer extends StatelessWidget {
                       color: AppTheme.accent.withOpacity(0.15 + glow),
                       blurRadius: 40 + glow * 20,
                       spreadRadius: 5 + glow * 5,
-                    )
+                    ),
                   ]
                 : [],
           ),
@@ -489,7 +558,9 @@ class _CircularTimer extends StatelessWidget {
                   Text(
                     isRunning ? 'remaining' : 'duration',
                     style: const TextStyle(
-                        color: AppTheme.textMuted, fontSize: 13),
+                      color: AppTheme.textMuted,
+                      fontSize: 13,
+                    ),
                   ),
                 ],
               ),
@@ -569,15 +640,22 @@ class _StatCard extends StatelessWidget {
           children: [
             Icon(icon, color: color, size: 20),
             const SizedBox(height: Sp.xs),
-            Text(value,
-                style: TextStyle(
-                    color: color,
-                    fontSize: 24,
-                    fontWeight: FontWeight.w700)),
-            Text(label,
-                style: const TextStyle(
-                    color: AppTheme.textSecondary, fontSize: 11),
-                textAlign: TextAlign.center),
+            Text(
+              value,
+              style: TextStyle(
+                color: color,
+                fontSize: 24,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            Text(
+              label,
+              style: const TextStyle(
+                color: AppTheme.textSecondary,
+                fontSize: 11,
+              ),
+              textAlign: TextAlign.center,
+            ),
           ],
         ),
       ),
@@ -600,11 +678,14 @@ class _InfoRow extends StatelessWidget {
           Icon(icon, color: AppTheme.textMuted, size: 14),
           const SizedBox(width: Sp.sm),
           Expanded(
-            child: Text(text,
-                style: const TextStyle(
-                    color: AppTheme.textSecondary,
-                    fontSize: 12,
-                    height: 1.4)),
+            child: Text(
+              text,
+              style: const TextStyle(
+                color: AppTheme.textSecondary,
+                fontSize: 12,
+                height: 1.4,
+              ),
+            ),
           ),
         ],
       ),

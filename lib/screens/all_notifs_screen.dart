@@ -28,9 +28,9 @@ class AllNotifsScreen extends StatefulWidget {
 class _AllNotifsScreenState extends State<AllNotifsScreen> {
   String _filter = 'all';
 
+  // FIX 4: Only 3 app filters + all (WA Business merged)
   static const _filterOptions = {
     'all': 'All',
-    'com.whatsapp.w4b': 'WA Business',
     'com.whatsapp': 'WhatsApp',
     'com.instagram.android': 'Instagram',
     'com.snapchat.android': 'Snapchat',
@@ -38,10 +38,19 @@ class _AllNotifsScreenState extends State<AllNotifsScreen> {
 
   List<NotifItem> get _filtered {
     if (_filter == 'all') return widget.notifs;
+    // FIX 4: treat WA Business same as WA in filter
+    if (_filter == 'com.whatsapp') {
+      return widget.notifs
+          .where(
+            (n) =>
+                n.packageName == 'com.whatsapp' ||
+                n.packageName == 'com.whatsapp.w4b',
+          )
+          .toList();
+    }
     return widget.notifs.where((n) => n.packageName == _filter).toList();
   }
 
-  // Adds to allowlist OR blocklist depending on current mode for that app
   Future<void> _addToList(NotifItem item, FilterMode targetMode) async {
     HapticFeedback.mediumImpact();
     final store = FilterStore.instance;
@@ -56,81 +65,113 @@ class _AllNotifsScreenState extends State<AllNotifsScreen> {
     if (!mounted) return;
 
     final color = AppInfo.color(pkg);
-    final label = targetMode == FilterMode.allowlist ? 'allowlist' : 'blocklist';
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      behavior: SnackBarBehavior.floating,
-      backgroundColor: AppTheme.surfaceElevated,
-      shape: RoundedRectangleBorder(borderRadius: Rd.md),
-      margin: const EdgeInsets.all(Sp.md),
-      content: Row(
-        children: [
-          Container(width: 8, height: 8,
-              decoration: BoxDecoration(shape: BoxShape.circle, color: color)),
-          const SizedBox(width: Sp.sm),
-          Expanded(
-            child: Text('"${item.title}" added to $label',
-                style: const TextStyle(color: AppTheme.textPrimary, fontSize: 13)),
-          ),
-        ],
+    final label = targetMode == FilterMode.allowlist
+        ? 'allowlist'
+        : 'blocklist';
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: AppTheme.surfaceElevated,
+        shape: RoundedRectangleBorder(borderRadius: Rd.md),
+        margin: const EdgeInsets.all(Sp.md),
+        content: Row(
+          children: [
+            Container(
+              width: 8,
+              height: 8,
+              decoration: BoxDecoration(shape: BoxShape.circle, color: color),
+            ),
+            const SizedBox(width: Sp.sm),
+            Expanded(
+              child: Text(
+                '"${item.title}" added to $label',
+                style: const TextStyle(
+                  color: AppTheme.textPrimary,
+                  fontSize: 13,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
-    ));
+    );
   }
 
   void _showAddOptions(BuildContext context, NotifItem item) {
     final store = FilterStore.instance;
     final currentMode = store.modeFor(item.packageName);
-    final color = AppInfo.color(item.packageName);
 
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
       backgroundColor: AppTheme.surface,
       shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-      builder: (_) => Padding(
-        padding: const EdgeInsets.fromLTRB(Sp.md, Sp.md, Sp.md, Sp.xl),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Handle
-            Center(
-              child: Container(width: 36, height: 4,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => Padding(
+        padding: EdgeInsets.fromLTRB(
+          Sp.md,
+          Sp.md,
+          Sp.md,
+          Sp.xl + MediaQuery.of(ctx).viewInsets.bottom,
+        ),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 36,
+                  height: 4,
                   decoration: BoxDecoration(
-                      color: AppTheme.surfaceBorder, borderRadius: Rd.sm)),
-            ),
-            const SizedBox(height: Sp.md),
-            Text(item.title,
-                style: const TextStyle(color: AppTheme.textPrimary,
-                    fontSize: 15, fontWeight: FontWeight.w600)),
-            Text(AppInfo.name(item.packageName),
-                style: const TextStyle(color: AppTheme.textSecondary, fontSize: 12)),
-            const SizedBox(height: Sp.lg),
-            // Add to allowlist
-            _SheetOption(
-              icon: Icons.check_circle_outline_rounded,
-              color: const Color(0xFF25D366),
-              title: 'Add to Allowlist',
-              subtitle: 'Always receive notifications from this contact',
-              isHighlighted: currentMode == FilterMode.allowlist,
-              onTap: () {
-                Navigator.pop(context);
-                _addToList(item, FilterMode.allowlist);
-              },
-            ),
-            const SizedBox(height: Sp.sm),
-            // Add to blocklist
-            _SheetOption(
-              icon: Icons.block_rounded,
-              color: Colors.redAccent,
-              title: 'Add to Blocklist',
-              subtitle: 'Never receive notifications from this contact',
-              isHighlighted: currentMode == FilterMode.blocklist,
-              onTap: () {
-                Navigator.pop(context);
-                _addToList(item, FilterMode.blocklist);
-              },
-            ),
-          ],
+                    color: AppTheme.surfaceBorder,
+                    borderRadius: Rd.sm,
+                  ),
+                ),
+              ),
+              const SizedBox(height: Sp.md),
+              Text(
+                item.title,
+                style: const TextStyle(
+                  color: AppTheme.textPrimary,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              Text(
+                AppInfo.name(item.packageName),
+                style: const TextStyle(
+                  color: AppTheme.textSecondary,
+                  fontSize: 12,
+                ),
+              ),
+              const SizedBox(height: Sp.lg),
+              _SheetOption(
+                icon: Icons.check_circle_outline_rounded,
+                color: const Color(0xFF25D366),
+                title: 'Add to Allowlist',
+                subtitle: 'Always receive notifications from this contact',
+                isHighlighted: currentMode == FilterMode.allowlist,
+                onTap: () {
+                  Navigator.pop(context);
+                  _addToList(item, FilterMode.allowlist);
+                },
+              ),
+              const SizedBox(height: Sp.sm),
+              _SheetOption(
+                icon: Icons.block_rounded,
+                color: Colors.redAccent,
+                title: 'Add to Blocklist',
+                subtitle: 'Never receive notifications from this contact',
+                isHighlighted: currentMode == FilterMode.blocklist,
+                onTap: () {
+                  Navigator.pop(context);
+                  _addToList(item, FilterMode.blocklist);
+                },
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -163,7 +204,9 @@ class _AllNotifsScreenState extends State<AllNotifsScreen> {
           Container(
             color: AppTheme.surface,
             padding: const EdgeInsets.symmetric(
-                vertical: Sp.sm + 2, horizontal: Sp.md),
+              vertical: Sp.sm + 2,
+              horizontal: Sp.md,
+            ),
             child: SingleChildScrollView(
               scrollDirection: Axis.horizontal,
               child: Row(
@@ -194,12 +237,17 @@ class _AllNotifsScreenState extends State<AllNotifsScreen> {
                   )
                 : ListView.builder(
                     padding: const EdgeInsets.fromLTRB(
-                        Sp.md, Sp.md, Sp.md, Sp.xxl),
+                      Sp.md,
+                      Sp.md,
+                      Sp.md,
+                      Sp.xxl,
+                    ),
                     itemCount: _filtered.length,
                     itemBuilder: (ctx, i) {
                       final item = _filtered[i];
-                      final isSupported =
-                          FilterStore.instance.isSupported(item.packageName);
+                      final isSupported = FilterStore.instance.isSupported(
+                        item.packageName,
+                      );
                       return NotifCard(
                         item: item,
                         index: i,
@@ -241,19 +289,26 @@ class _SheetOption extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(Sp.md),
         decoration: BoxDecoration(
-          color: isHighlighted ? color.withOpacity(0.08) : AppTheme.surfaceElevated,
+          color: isHighlighted
+              ? color.withOpacity(0.08)
+              : AppTheme.surfaceElevated,
           borderRadius: Rd.lg,
           border: Border.all(
-            color: isHighlighted ? color.withOpacity(0.4) : AppTheme.surfaceBorder,
+            color: isHighlighted
+                ? color.withOpacity(0.4)
+                : AppTheme.surfaceBorder,
             width: isHighlighted ? 1 : 0.5,
           ),
         ),
         child: Row(
           children: [
             Container(
-              width: 36, height: 36,
+              width: 36,
+              height: 36,
               decoration: BoxDecoration(
-                  color: color.withOpacity(0.12), borderRadius: Rd.sm),
+                color: color.withOpacity(0.12),
+                borderRadius: Rd.sm,
+              ),
               child: Icon(icon, color: color, size: 18),
             ),
             const SizedBox(width: Sp.md),
@@ -261,13 +316,21 @@ class _SheetOption extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(title,
-                      style: TextStyle(
-                          color: isHighlighted ? color : AppTheme.textPrimary,
-                          fontSize: 14, fontWeight: FontWeight.w600)),
-                  Text(subtitle,
-                      style: const TextStyle(
-                          color: AppTheme.textSecondary, fontSize: 12)),
+                  Text(
+                    title,
+                    style: TextStyle(
+                      color: isHighlighted ? color : AppTheme.textPrimary,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  Text(
+                    subtitle,
+                    style: const TextStyle(
+                      color: AppTheme.textSecondary,
+                      fontSize: 12,
+                    ),
+                  ),
                 ],
               ),
             ),

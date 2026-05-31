@@ -37,8 +37,7 @@ class _FilterScreenState extends State<FilterScreen>
 
   Future<void> _pickContact() async {
     try {
-      final String? name =
-          await _contactsChannel.invokeMethod('pickContact');
+      final String? name = await _contactsChannel.invokeMethod('pickContact');
       if (name != null && name.isNotEmpty) {
         final store = FilterStore.instance;
         final mode = store.modeFor(_selectedApp);
@@ -85,14 +84,18 @@ class _FilterScreenState extends State<FilterScreen>
   }
 
   void _showSnack(String msg) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      behavior: SnackBarBehavior.floating,
-      backgroundColor: AppTheme.surfaceElevated,
-      shape: RoundedRectangleBorder(borderRadius: Rd.md),
-      margin: const EdgeInsets.all(Sp.md),
-      content: Text(msg,
-          style: const TextStyle(color: AppTheme.textPrimary, fontSize: 13)),
-    ));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: AppTheme.surfaceElevated,
+        shape: RoundedRectangleBorder(borderRadius: Rd.md),
+        margin: const EdgeInsets.all(Sp.md),
+        content: Text(
+          msg,
+          style: const TextStyle(color: AppTheme.textPrimary, fontSize: 13),
+        ),
+      ),
+    );
   }
 
   @override
@@ -122,7 +125,9 @@ class _FilterScreenState extends State<FilterScreen>
           Container(
             color: AppTheme.surface,
             padding: const EdgeInsets.symmetric(
-                vertical: Sp.sm + 2, horizontal: Sp.md),
+              vertical: Sp.sm + 2,
+              horizontal: Sp.md,
+            ),
             child: SingleChildScrollView(
               scrollDirection: Axis.horizontal,
               child: Row(
@@ -174,16 +179,16 @@ class _FilterScreenState extends State<FilterScreen>
                     mode == FilterMode.allowlist
                         ? Icons.check_circle_outline_rounded
                         : Icons.block_rounded,
-                    color: color, size: 14,
+                    color: color,
+                    size: 14,
                   ),
                   const SizedBox(width: Sp.sm),
                   Expanded(
                     child: Text(
                       mode == FilterMode.allowlist
-                          ? 'Only contacts in this list will receive notifications.'
-                          : 'Everyone receives notifications EXCEPT contacts in this list.',
-                      style: TextStyle(
-                          color: color, fontSize: 12, height: 1.4),
+                          ? 'User will ONLY receive notifications from contacts in this list.'
+                          : 'User will receive notifications from ALL contacts EXCEPT those in this list.',
+                      style: TextStyle(color: color, fontSize: 12, height: 1.4),
                     ),
                   ),
                 ],
@@ -206,22 +211,30 @@ class _FilterScreenState extends State<FilterScreen>
                           color: AppTheme.surfaceElevated,
                           borderRadius: Rd.md,
                           border: Border.all(
-                              color: AppTheme.surfaceBorder, width: 0.5),
+                            color: AppTheme.surfaceBorder,
+                            width: 0.5,
+                          ),
                         ),
                         child: TextField(
                           controller: _ctrl,
                           focusNode: _focusNode,
                           style: const TextStyle(
-                              color: AppTheme.textPrimary, fontSize: 14),
+                            color: AppTheme.textPrimary,
+                            fontSize: 14,
+                          ),
                           decoration: InputDecoration(
                             hintText: mode == FilterMode.allowlist
                                 ? 'Add to allowlist...'
                                 : 'Add to blocklist...',
                             hintStyle: const TextStyle(
-                                color: AppTheme.textMuted, fontSize: 14),
+                              color: AppTheme.textMuted,
+                              fontSize: 14,
+                            ),
                             border: InputBorder.none,
                             contentPadding: const EdgeInsets.symmetric(
-                                horizontal: Sp.md, vertical: Sp.sm + 2),
+                              horizontal: Sp.md,
+                              vertical: Sp.sm + 2,
+                            ),
                           ),
                           onSubmitted: (_) => _addManual(),
                         ),
@@ -231,11 +244,17 @@ class _FilterScreenState extends State<FilterScreen>
                     GestureDetector(
                       onTap: _addManual,
                       child: Container(
-                        width: 44, height: 44,
+                        width: 44,
+                        height: 44,
                         decoration: BoxDecoration(
-                            color: color, borderRadius: Rd.md),
-                        child: const Icon(Icons.add_rounded,
-                            color: Colors.white, size: 20),
+                          color: color,
+                          borderRadius: Rd.md,
+                        ),
+                        child: const Icon(
+                          Icons.add_rounded,
+                          color: Colors.white,
+                          size: 20,
+                        ),
                       ),
                     ),
                   ],
@@ -253,18 +272,23 @@ class _FilterScreenState extends State<FilterScreen>
                         color: color.withOpacity(0.08),
                         borderRadius: Rd.md,
                         border: Border.all(
-                            color: color.withOpacity(0.25), width: 0.5),
+                          color: color.withOpacity(0.25),
+                          width: 0.5,
+                        ),
                       ),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           Icon(Icons.contacts_rounded, color: color, size: 16),
                           const SizedBox(width: Sp.sm),
-                          Text('Pick from contacts',
-                              style: TextStyle(
-                                  color: color,
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w500)),
+                          Text(
+                            'Pick from contacts',
+                            style: TextStyle(
+                              color: color,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
                         ],
                       ),
                     ),
@@ -277,20 +301,27 @@ class _FilterScreenState extends State<FilterScreen>
                   Container(
                     padding: const EdgeInsets.all(Sp.sm + 2),
                     decoration: BoxDecoration(
-                        color: AppTheme.accentSoft, borderRadius: Rd.md),
+                      color: AppTheme.accentSoft,
+                      borderRadius: Rd.md,
+                    ),
                     child: const Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Icon(Icons.lightbulb_outline_rounded,
-                            color: AppTheme.accent, size: 14),
+                        Icon(
+                          Icons.lightbulb_outline_rounded,
+                          color: AppTheme.accent,
+                          size: 14,
+                        ),
                         SizedBox(width: Sp.sm),
                         Expanded(
                           child: Text(
                             'Instagram shows the sender\'s display name (not username). '
-                            'Go to All tab → tap a notification → "Add to list" to whitelist automatically.',
+                            'Go to All tab → tap a notification → "Add to list" to add to the current list automatically.',
                             style: TextStyle(
-                                color: AppTheme.accent,
-                                fontSize: 12, height: 1.4),
+                              color: AppTheme.accent,
+                              fontSize: 12,
+                              height: 1.4,
+                            ),
                           ),
                         ),
                       ],
@@ -304,19 +335,26 @@ class _FilterScreenState extends State<FilterScreen>
                   Container(
                     padding: const EdgeInsets.all(Sp.sm + 2),
                     decoration: BoxDecoration(
-                        color: AppTheme.accentSoft, borderRadius: Rd.md),
+                      color: AppTheme.accentSoft,
+                      borderRadius: Rd.md,
+                    ),
                     child: const Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Icon(Icons.lightbulb_outline_rounded,
-                            color: AppTheme.accent, size: 14),
+                        Icon(
+                          Icons.lightbulb_outline_rounded,
+                          color: AppTheme.accent,
+                          size: 14,
+                        ),
                         SizedBox(width: Sp.sm),
                         Expanded(
                           child: Text(
                             'Go to All tab → tap a Snapchat notification → "Add to list" to add automatically.',
                             style: TextStyle(
-                                color: AppTheme.accent,
-                                fontSize: 12, height: 1.4),
+                              color: AppTheme.accent,
+                              fontSize: 12,
+                              height: 1.4,
+                            ),
                           ),
                         ),
                       ],
@@ -344,7 +382,11 @@ class _FilterScreenState extends State<FilterScreen>
                   )
                 : ListView.builder(
                     padding: const EdgeInsets.fromLTRB(
-                        Sp.md, Sp.md, Sp.md, Sp.xxl),
+                      Sp.md,
+                      Sp.md,
+                      Sp.md,
+                      Sp.xxl,
+                    ),
                     itemCount: activeList.length,
                     itemBuilder: (ctx, i) => _ContactTile(
                       name: activeList[i],
@@ -436,17 +478,18 @@ class _Tab extends StatelessWidget {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(icon,
-                  size: 15,
-                  color: isSelected ? color : AppTheme.textMuted),
+              Icon(
+                icon,
+                size: 15,
+                color: isSelected ? color : AppTheme.textMuted,
+              ),
               const SizedBox(width: 6),
               Text(
                 label,
                 style: TextStyle(
                   color: isSelected ? color : AppTheme.textMuted,
                   fontSize: 13,
-                  fontWeight:
-                      isSelected ? FontWeight.w600 : FontWeight.w400,
+                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
                 ),
               ),
             ],
@@ -476,7 +519,9 @@ class _ContactTile extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.only(bottom: Sp.sm),
       padding: const EdgeInsets.symmetric(
-          horizontal: Sp.md, vertical: Sp.sm + 2),
+        horizontal: Sp.md,
+        vertical: Sp.sm + 2,
+      ),
       decoration: BoxDecoration(
         color: AppTheme.surface,
         borderRadius: Rd.md,
@@ -485,7 +530,8 @@ class _ContactTile extends StatelessWidget {
       child: Row(
         children: [
           Container(
-            width: 34, height: 34,
+            width: 34,
+            height: 34,
             decoration: BoxDecoration(
               color: isBlock
                   ? Colors.redAccent.withOpacity(0.12)
@@ -494,14 +540,18 @@ class _ContactTile extends StatelessWidget {
             ),
             child: Center(
               child: isBlock
-                  ? const Icon(Icons.block_rounded,
-                      color: Colors.redAccent, size: 16)
+                  ? const Icon(
+                      Icons.block_rounded,
+                      color: Colors.redAccent,
+                      size: 16,
+                    )
                   : Text(
                       name.isNotEmpty ? name[0].toUpperCase() : '?',
                       style: TextStyle(
-                          color: color,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600),
+                        color: color,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
             ),
           ),
@@ -510,20 +560,27 @@ class _ContactTile extends StatelessWidget {
             child: Text(
               name,
               style: const TextStyle(
-                  color: AppTheme.textPrimary,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500),
+                color: AppTheme.textPrimary,
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+              ),
               overflow: TextOverflow.ellipsis,
             ),
           ),
           GestureDetector(
             onTap: onRemove,
             child: Container(
-              width: 28, height: 28,
+              width: 28,
+              height: 28,
               decoration: BoxDecoration(
-                  color: AppTheme.surfaceElevated, borderRadius: Rd.sm),
-              child: const Icon(Icons.close_rounded,
-                  color: AppTheme.textMuted, size: 14),
+                color: AppTheme.surfaceElevated,
+                borderRadius: Rd.sm,
+              ),
+              child: const Icon(
+                Icons.close_rounded,
+                color: AppTheme.textMuted,
+                size: 14,
+              ),
             ),
           ),
         ],
